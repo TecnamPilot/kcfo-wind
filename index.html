@@ -169,7 +169,7 @@ a{color:var(--accent)}
     <ol>
       <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (08 = 091°, 26 = 271°, 17 = 180°, 35 = 360°) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about 8° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
-      <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the full speed is counted as both crosswind and tailwind.</li>
+      <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the runway colors test the full speed both as crosswind and as tailwind. The score counts only the worse of those two penalties, because the wind cannot be fully across and fully behind you at the same moment.</li>
       <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your personal max tailwind (default 6 kt). A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
       <li><b>Calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
@@ -741,11 +741,17 @@ function windPart(w,t,lim){
   else{
     const greens=res.filter(x=>x.green);
     const best=(greens.length?greens:ok).reduce((a,b)=>b.xwMax<a.xwMax?b:a);
-    const xw=Math.round(best.xwMax), tw=Math.round(best.twMax), vr=w.vrb?", direction variable so the full wind is counted":"";
+    const xw=Math.round(best.xwMax), tw=Math.round(best.twMax);
     const xp=xw<=5?0:xw<=10?2*(xw-5):Math.min(45,10+7*(xw-10));
-    if(xp) P.push([xp,`crosswind ${xw} kt on RWY ${best.r.id} (best runway), your limit ${lim.xw} kt${vr}`]);
     const tp=Math.min(12,2*tw);
-    if(tp) P.push([tp,`tailwind ${tw} kt on RWY ${best.r.id} (best runway)${vr}`]);
+    if(w.vrb){
+      // A variable wind cannot be a full crosswind and a full tailwind at the same moment,
+      // so count only the worse of the two instead of adding them.
+      if(Math.max(xp,tp)) P.push([Math.max(xp,tp),`variable wind ${xw} kt on RWY ${best.r.id}: it could be all tailwind (−${tp}) or all crosswind (−${xp}), the worse one is counted`]);
+    } else {
+      if(xp) P.push([xp,`crosswind ${xw} kt on RWY ${best.r.id} (best runway), your limit ${lim.xw} kt`]);
+      if(tp) P.push([tp,`tailwind ${tw} kt on RWY ${best.r.id} (best runway)`]);
+    }
     P.best=best.r.id;
   }
   if(spread>4) P.push([Math.min(30,3*(spread-4)),`gusts ${spread} kt above the steady wind`]);
