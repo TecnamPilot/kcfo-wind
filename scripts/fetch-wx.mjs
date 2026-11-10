@@ -5,7 +5,9 @@ import { writeFileSync } from "node:fs";
 
 const KCFO = { lat: 39.7853, lon: -104.5431 };
 const PIREP_RADIUS_NM = 40;
-const UA = { "User-Agent": "kcfo-wind-fetch (GitHub Actions)" };
+// aviationweather.gov asks for a custom user agent. Its firewall answered 403 to one that
+// contained "fetch (GitHub Actions)", and 200 to this one (checked 2026-11-10).
+const UA = { "User-Agent": "kcfo-wind/1.0 (personal flight-planning page)", Accept: "*/*" };
 
 function pointInRing(lon, lat, ring) {
   let inside = false;
