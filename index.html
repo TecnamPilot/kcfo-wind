@@ -198,9 +198,9 @@ const TZ = "America/Denver";
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 const xwInput=document.getElementById("xwLim"), twInput=document.getElementById("twLim");
-xwInput.value=lsGet("kcfo.xw","15"); twInput.value=lsGet("kcfo.tw","10");
+xwInput.value=lsGet("kcfo.xw","15"); twInput.value=lsGet("kcfo.tw5","5");
 function limits(){return {xw:Math.max(0,+xwInput.value||0), tw:Math.max(0,+twInput.value||0)}}
-[xwInput,twInput].forEach(el=>el.addEventListener("input",()=>{lsSet("kcfo.xw",xwInput.value);lsSet("kcfo.tw",twInput.value);renderAll()}));
+[xwInput,twInput].forEach(el=>el.addEventListener("input",()=>{lsSet("kcfo.xw",xwInput.value);lsSet("kcfo.tw5",twInput.value);renderAll()}));
 
 // ---------- wind math ----------
 const rad=d=>d*Math.PI/180;
