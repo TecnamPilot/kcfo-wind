@@ -582,7 +582,7 @@ function renderAware(){
   if(gusty.length){const g=Math.max(...gusty.map(r=>r.wind.gst-r.wind.spd));
     const VAPP=65, VFE=68, add=g/2, vg=VAPP+add;
     items.push(`${lvl(g>=10||vg>VFE?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${fmt(add)} kt, to your 65 KIAS final approach speed = ${fmt(vg)} KIAS. `+
-      (vg>VFE?`<b class="lvl-warn">That is above the 68 KIAS flap limit (VFE, P2008 TC POH §2.1.1, same for every flap setting).</b> With flaps out you can add at most ${VFE-VAPP} kt, so you get less gust protection than the rule asks for. Consider another time or runway, and decide your plan before you go.`
+      (vg>VFE?`<b class="lvl-warn">That is above 68 KIAS, the flap limit (VFE).</b> The P2008 TC POH (§2.1.1) gives one VFE, 68 KIAS, "for any given flap setting", so using takeoff flaps (15°) instead of full flaps does not raise it; only flaps up (0°) has no flap limit. With any flaps out you can add at most ${VFE-VAPP} kt. Decide your flap setting and speed for this wind before you go.`
              :`That stays at or below the 68 KIAS flap limit (VFE).`));}
   // Alerts
   if(state.alerts){
