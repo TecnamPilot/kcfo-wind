@@ -345,14 +345,25 @@ async function getJSON(url){
   if(!r.ok) throw new Error(`${r.status} from ${new URL(url).pathname}`);
   return r.json();
 }
-async function fetchMETAR(){
-  const j=await getJSON(`${NWS}/stations/KCFO/observations/latest`);
-  const p=j.properties;
-  if(p.rawMessage) { const m=parseMETAR(p.rawMessage); if(!m.time)m.time=new Date(p.timestamp); return m; }
+// Newest observation for a station. /observations/latest can lag by hours or lack the raw text,
+// so read the last few reports and take the newest usable one.
+async function latestObs(id){
+  const j=await getJSON(`${NWS}/stations/${id}/observations?limit=8`);
+  const feats=(j.features||[]).map(f=>f.properties).filter(p=>p&&p.timestamp).sort((a,b)=>Date.parse(b.timestamp)-Date.parse(a.timestamp));
   const kmh=o=>o&&o.value!=null?Math.round(o.value*KT_PER_KMH):null;
-  const dir=p.windDirection&&p.windDirection.value;
-  return {wind:{vrb:dir==null&&kmh(p.windSpeed)>0,dir:dir??0,spd:kmh(p.windSpeed)||0,gst:kmh(p.windGust)},time:new Date(p.timestamp),raw:"(decoded observation, raw text not available)",temp:p.temperature&&p.temperature.value,altim:null};
+  for(const p of feats){
+    if(p.rawMessage){ try{ const m=parseMETAR(p.rawMessage); m.time=new Date(p.timestamp); return m; }catch(e){} }
+    const spd=kmh(p.windSpeed);
+    if(spd!=null){
+      const dir=p.windDirection&&p.windDirection.value;
+      const pa=p.barometricPressure&&p.barometricPressure.value;
+      return {wind:{vrb:dir==null&&spd>0,dir:dir??0,spd,gst:kmh(p.windGust)},time:new Date(p.timestamp),
+        raw:"(decoded report; raw METAR text not provided)",temp:p.temperature&&p.temperature.value,altim:pa?pa/3386.39:null};
+    }
+  }
+  throw new Error("no usable report in the last "+feats.length+" observations");
 }
+async function fetchMETAR(){ return latestObs("KCFO"); }
 async function fetchTAF(){
   let list=null, lastErr=null;
   for(const loc of ["DEN","KDEN"]){
@@ -390,7 +401,7 @@ async function fetchNWSGrid(){
     const v=vis.get(t), c=ceil.get(t);
     rows.push({time:new Date(t), wind:{dir:Math.round(d)%360, spd:Math.round(s), gst:gg!=null&&gg>s+2?Math.round(gg):null},
       temp:tmp.get(t)??null, dew:dew.get(t)??null, sky:sky.get(t)??null, pop:pop.get(t)??null,
-      visSM:v!=null?v/1609.34:null, ceilFt:c!=null?c*3.281:null});
+      visSM:v!=null&&v>0?v/1609.34:null, ceilFt:c!=null&&c>0?c*3.281:null});
   }
   return rows;
 }
@@ -404,9 +415,8 @@ const NEARBY=[
 ];
 async function fetchNearby(){
   const out=await Promise.allSettled(NEARBY.map(async s=>{
-    const j=await getJSON(`${NWS}/stations/${s.id}/observations/latest`); const p=j.properties;
-    let m=null; try{ if(p.rawMessage) m=parseMETAR(p.rawMessage);}catch(e){}
-    return {...s, raw:p.rawMessage||"", wind:m?m.wind:null, time:new Date(p.timestamp)};
+    const m=await latestObs(s.id);
+    return {...s, raw:m.raw, wind:m.wind, time:m.time};
   }));
   return out.map((r,i)=>r.status==="fulfilled"?r.value:{...NEARBY[i],error:r.reason.message});
 }
@@ -565,7 +575,7 @@ function renderAware(){
     const sky=Math.max(...wx.map(r=>r.sky??0)), pop=Math.max(...wx.map(r=>r.pop??0));
     const t0=n0&&n0.temp!=null?`${Math.round(n0.temp)} °C / dew point ${Math.round(n0.dew)} °C at departure`:"";
     items.push(`${lvl(frost?"warn":"ok","Frost")}: ${t0}. ${frost?"Cold, humid morning: frost on the wing is likely after a clear night. Even thin frost cuts lift; remove all of it before takeoff.":"Frost unlikely from the forecast."}`);
-    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`Lowest forecast ceiling ${Math.round(Math.min(...ceil)/100)*100} ft above ground. `:""}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
+    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`NWS gridded forecast: lowest ceiling about ${(Math.round(Math.min(...ceil)/100)*100).toLocaleString()} ft above ground. `:"No usable ceiling value in the NWS gridded forecast for this window; for cloud bases use the KDEN TAF (shown in the forecast section). "}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
   }
   // Gust spread
   const gusty=(state.nws||[]).filter(r=>inWindow(r.time,w)&&r.wind.gst);
@@ -586,7 +596,7 @@ function renderAware(){
     const rows=state.nearby.map(s=>{
       if(s.error||!s.wind) return `<tr><td>${s.id}</td><td>${s.note}</td><td colspan="2" class="small">${s.error||"no data"}</td></tr>`;
       const age=Math.round((Date.now()-s.time)/60000);
-      return `<tr><td>${s.id}</td><td class="small">${s.note}</td><td>${windText(s.wind).split(" · ")[0]}</td><td class="small mono">${(s.raw||"").replace(/</g,"&lt;")} <span>(${age} min ago)</span></td></tr>`;}).join("");
+      return `<tr><td>${s.id}</td><td class="small">${s.note}</td><td>${windText(s.wind).split(" · ")[0]}</td><td class="small mono">${(s.raw||"").replace(/</g,"&lt;")} <span ${age>75?'class="err"':""}>(${age} min ago${age>75?", old":""})</span></td></tr>`;}).join("");
     items.push(`${lvl("info","Nearby airports right now")}: if their winds are much stronger or from a different direction than KCFO, conditions are changing or not the same across the area. A strong west wind at KBJC near the foothills, with calm at KCFO, can mean mountain-wave turbulence or a wind shift on its way.<div class="scroll"><table class="tl" style="margin-top:6px">${rows}</table></div>`);
   }
   // AFD
@@ -677,7 +687,7 @@ function renderView(){
     let extra="";
     if(m.temp!=null && m.altim){const pa=5515+(29.92-m.altim)*1000;const isa=15-2*pa/1000;const da=Math.round((pa+120*(m.temp-isa))/100)*100;extra=` · density altitude ≈ ${da.toLocaleString()} ft`;}
     const age=m.time?Math.round((Date.now()-m.time)/60000):null;
-    document.getElementById("windLine").innerHTML=`<div>${m.raw.replace(/</g,"&lt;")}</div><div class="small">Wind ${windText(m.wind)} · observed ${timeText(m.time)}${age!=null?` (${age} min ago)`:""}${extra}</div>`;
+    document.getElementById("windLine").innerHTML=`<div>${m.raw.replace(/</g,"&lt;")}</div><div class="small">Wind ${windText(m.wind)} · observed ${timeText(m.time)}${age!=null?(age>75?` <b class="err">(${age} min ago, old: check AWOS 119.025)</b>`:` (${age} min ago)`):""}${extra}</div>`;
     back.style.display="none"; renderCards(m.wind,m.time||new Date());
   } else {
     document.getElementById("windLine").textContent="No current observation loaded yet.";
