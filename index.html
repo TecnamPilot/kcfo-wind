@@ -978,19 +978,19 @@ function renderTimeline(){
     err.textContent="";
   }
   const lim=limits();
-  let h=`<tr><th>Time (local / Z)</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}<th>Score</th></tr>`;
+  let h=`<tr><th>Time (local / Z)</th><th>Wind (true)</th><th>Score</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
   rows.forEach((row,i)=>{
     const sc=scoreHour(row.time,row.wind,row.alts), scKey=row.label+(+row.time);
     const res=evaluate(row.wind,lim,row.time);
     const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
     const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(inWindow(row.time,flightWindow())?" win":"");
-    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td>`+
+    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td>`+
       res.map((x,k)=>{
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
         const altRed=altRes.filter(ar=>ar.res[k].red&&!x.red).map(ar=>`${ar.a.kind}: X${Math.round(ar.res[k].xwMax)} T${Math.round(ar.res[k].twMax)}`);
         return `<td class="c ${x.cls}">${x.calm?"calm":hw+" "+xwTxt}${altRed.length?`<span class="tempo">⚠ ${altRed.join(", ")}</span>`:""}</td>`;
-      }).join("")+`<td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td></tr>`;
+      }).join("")+`</tr>`;
     if(state.scoreOpen===scKey) h+=`<tr><td class="whyrow" colspan="7"><div class="scorebox">${scoreText(sc,timeText(row.time).split(" local")[0]+` (${row.label} wind)`)}</div></td></tr>`;
   });
   if(!rows.length) h+=`<tr><td colspan="7">No forecast hours remaining in this product.</td></tr>`;
