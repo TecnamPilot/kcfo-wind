@@ -1092,7 +1092,7 @@ async function refresh(){
   parts.push(mdl.status==="fulfilled"?"Model winds aloft ✓":`<span class="err">Model winds aloft failed (${mdl.reason.message}); scores show ? and skip the wind-shear and turbulence estimates</span>`);
   parts.push(thr.status==="fulfilled"?"Thermal forecast ✓"+([...thr.value.values()].some(x=>x.est)?" (heating estimated from sunshine)":""):`<span class="err">Thermal forecast failed (${thr.reason.message}); thermal bumps are not in the score</span>`);
   if(state.wx){const age=Math.round((Date.now()-state.wx.time)/60000), bad=!wxFresh()||!state.wx.gairmet||!state.wx.gairmet.ok;
-    parts.push(bad?`<span class="err">G-AIRMET and pilot reports: saved ${age} min ago${wxFresh()?", but the download from aviationweather.gov failed":", too old"}; check the map yourself</span>`:`G-AIRMET and pilot reports ✓ (saved ${age} min ago)`);
+    parts.push(bad?`<span class="err">G-AIRMET and pilot reports: saved ${age} min ago${wxFresh()?", but the download from aviationweather.gov failed":", too old"}; check the map yourself, or <a href="https://github.com/TecnamPilot/kcfo-wind/actions/workflows/fetch-wx.yml" target="_blank" rel="noopener">open GitHub and tap Run workflow</a> to refresh it (takes about 1 minute)</span>`:`G-AIRMET and pilot reports ✓ (saved ${age} min ago)`);
   } else parts.push(`<span class="err">G-AIRMET and pilot reports not loaded (${wxr.reason.message}); check the map yourself</span>`);
   if([m,t,n].some(x=>x.status!=="fulfilled")) parts.push("You can paste a METAR/TAF below instead.");
   if(extraFail.length) parts.push(`<span class="err">Not loaded: ${extraFail.join(", ")}</span>`);

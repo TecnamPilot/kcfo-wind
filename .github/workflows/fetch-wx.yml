@@ -1,14 +1,28 @@
 name: Fetch aviation weather
 
-# Every 30 minutes: download G-AIRMETs and pilot reports from aviationweather.gov and
-# publish them as wx.json on the "data" branch, where the app reads them.
+# Downloads G-AIRMETs and pilot reports from aviationweather.gov every 30 minutes and publishes
+# them as wx.json on the "data" branch, where the app reads them.
+#
+# GitHub's own timer ("schedule") did not start this workflow even once in its first 8 hours, so
+# the workflow does not depend on it. One run downloads 11 times, 30 minutes apart (5.5 hours,
+# under GitHub's 6 hour limit for a job), and then starts the next run itself. The timer stays
+# as a backup: if it does fire, or if someone taps "Run workflow", the new run downloads
+# immediately and takes over, and the older run is cancelled.
 on:
   schedule:
     - cron: "7,37 * * * *"
   workflow_dispatch:
+    inputs:
+      loops:
+        description: "Downloads in this run"
+        default: "11"
+      pause_minutes:
+        description: "Minutes between downloads"
+        default: "30"
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: fetch-wx
@@ -17,25 +31,49 @@ concurrency:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch G-AIRMETs and PIREPs
-        id: fetch
-        continue-on-error: true
-        run: node scripts/fetch-wx.mjs
-      - name: Publish wx.json to the data branch
+      - name: Download and publish, then wait, repeatedly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOOPS: ${{ inputs.loops || '11' }}
+          PAUSE_MINUTES: ${{ inputs.pause_minutes || '30' }}
         run: |
-          test -f wx.json
-          mkdir out && mv wx.json out/ && cd out
-          git init -q -b data
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add wx.json
-          git commit -q -m "Aviation weather $(date -u +%Y-%m-%dT%H:%MZ)"
-          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
-      - name: Fail the run if a source did not load
-        if: steps.fetch.outcome == 'failure'
+          failed=0
+          for i in $(seq 1 "$LOOPS"); do
+            echo "::group::Download $i of $LOOPS at $(date -u +%H:%MZ)"
+            rm -rf out wx.json
+            node scripts/fetch-wx.mjs || failed=$((failed+1))
+            if [ -f wx.json ]; then
+              mkdir out && mv wx.json out/
+              (
+                cd out
+                git init -q -b data
+                git config user.name "github-actions[bot]"
+                git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                git add wx.json
+                git commit -q -m "Aviation weather $(date -u +%Y-%m-%dT%H:%MZ)"
+                git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+              ) || failed=$((failed+1))
+            else
+              failed=$((failed+1))
+            fi
+            echo "::endgroup::"
+            if [ "$i" -lt "$LOOPS" ]; then sleep $((PAUSE_MINUTES*60)); fi
+          done
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "Downloads with a problem: $failed of $LOOPS"
+        id: loop
+      - name: Wait, then start the next run
+        # Not when this run was cancelled: the run that cancelled it has already taken over.
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAUSE_MINUTES: ${{ inputs.pause_minutes || '30' }}
+        run: |
+          sleep $((PAUSE_MINUTES*60))
+          gh workflow run fetch-wx.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
+      - name: Fail the run if every download had a problem
+        if: ${{ !cancelled() && steps.loop.outputs.failed == (inputs.loops || '11') }}
         run: exit 1
