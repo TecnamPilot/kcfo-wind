@@ -161,7 +161,7 @@ a{color:var(--accent)}
       <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (08 = 091°, 26 = 271°, 17 = 180°, 35 = 360°) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about 8° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
       <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the full speed is counted as both crosswind and tailwind.</li>
-      <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your personal max tailwind.</li>
+      <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your personal max tailwind (default 6 kt). A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
       <li><b>Grey</b>: within limits but not the best choice.</li>
       <li>Distance change uses the POH correction: <b>+15 m (50 ft) per kt of tailwind</b>, <b>−5 m (16 ft) per kt of headwind</b> (P2008 TC Flight Manual §4.6 takeoff and §4.7 landing). Runways here are 2,438 m long, so distance is rarely the problem; control is.</li>
@@ -198,9 +198,9 @@ const TZ = "America/Denver";
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 const xwInput=document.getElementById("xwLim"), twInput=document.getElementById("twLim");
-xwInput.value=lsGet("kcfo.xw","15"); twInput.value=lsGet("kcfo.tw5","5");
+xwInput.value=lsGet("kcfo.xw","15"); twInput.value=lsGet("kcfo.tw6","6");
 function limits(){return {xw:Math.max(0,+xwInput.value||0), tw:Math.max(0,+twInput.value||0)}}
-[xwInput,twInput].forEach(el=>el.addEventListener("input",()=>{lsSet("kcfo.xw",xwInput.value);lsSet("kcfo.tw5",twInput.value);renderAll()}));
+[xwInput,twInput].forEach(el=>el.addEventListener("input",()=>{lsSet("kcfo.xw",xwInput.value);lsSet("kcfo.tw6",twInput.value);renderAll()}));
 
 // ---------- wind math ----------
 const rad=d=>d*Math.PI/180;
@@ -617,6 +617,7 @@ function renderCards(wind){
     let why;
     if(x.red) why="Not within limits: "+x.reasons.join("; ")+".";
     else if(x.calm) why="Calm: any runway; follow ATC / calm-wind runway.";
+    else if(wind.vrb && x.green) why=`Variable wind (direction unknown): any runway is within limits even if all ${wind.gst||wind.spd} kt ends up as tailwind or crosswind. Pick by ATC / traffic.`;
     else if(x.green) why="Most headwind of the runways within limits.";
     else if(x.twMax>0.5) why=`Within limits but has up to ${fmt(x.twMax)} kt tailwind.`;
     else why="Within limits, less headwind than the best runway.";
