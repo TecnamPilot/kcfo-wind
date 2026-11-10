@@ -200,6 +200,7 @@ a{color:var(--accent)}
       <li><b>Precipitation</b>: 20–49% chance 5 points, 50% or more 15. Freezing rain, freezing drizzle or ice pellets: cap 10. Snow: cap 30.</li>
       <li><b>Fog risk</b>: temperature within 2 °C of dew point with wind 5 kt or less around sunrise: 10 points.</li>
       <li><b>Low-level wind shear</b>: a G-AIRMET for wind shear over KCFO, a pilot report of wind shear within 30 nm, a wind-shear group in the KDEN TAF, or a model wind change of 20 kt or more between the surface and about 900 ft above ground: cap 35. Model change of 30 kt or more up to about 2,600 ft above ground: 20 points.</li>
+      <li><b>Thermal bumps</b> (daytime, from the sun heating the ground): thermal strength is the average speed of the rising air, worked out from the model's ground heating (W/m²) and the depth of the layer the thermals stir. Under 1.0 m/s (200 ft/min): 0 points. 1.0–1.9 m/s: 5. 2.0–2.9 m/s: 10. 3.0 m/s (600 ft/min) or more: 15. Never a cap. Not added when a G-AIRMET or pilot report of moderate turbulence already counts for that hour.</li>
       <li><b>Turbulence</b>: G-AIRMET for moderate turbulence reaching down to 8,000 ft MSL or lower: 20 points. Pilot report of moderate turbulence within 30 nm below 10,000 ft in the last 2 hours: 15 points; severe: cap 20. Model wind near 8,000 ft MSL of 25–34 kt 10 points, 35 kt or more 20. G-AIRMET for surface wind over 30 kt: cap 35.</li>
       <li><b>Mountain wave</b>: model wind near 12,000 ft MSL from 240°–330° at 25–39 kt 5 points, 40 kt or more 10.</li>
       <li><b>Alerts</b>: SIGMET over KCFO cap 15. High Wind, Winter Storm, Blizzard and similar warnings, Dense Fog Advisory: cap 15. Wind Advisory, Winter Weather Advisory: cap 39. Other alerts 5 points.</li>
@@ -508,6 +509,37 @@ async function fetchModel(){
   return m;
 }
 
+// ---------- Thermal turbulence (daytime bumps from the sun heating the ground) ----------
+// Thermal strength w* (the "convective velocity scale" glider forecasts use) is the average speed of
+// the rising air: w* = cube root of ( g/T x H/(rho x cp) x zi ), with H = heat the ground gives the air
+// (W/m2) and zi = depth of the layer the thermals stir (m). Separate request from fetchModel so that
+// a problem here cannot break the winds aloft.
+async function fetchThermal(){
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${KCFO.lat}&longitude=${KCFO.lon}&hourly=sensible_heat_flux,boundary_layer_height,shortwave_radiation,temperature_2m&models=gfs_seamless&timeformat=unixtime&forecast_days=7`;
+  const r=await fetch(url); if(!r.ok) throw new Error(`${r.status} from Open-Meteo`);
+  const H=(await r.json()).hourly; if(!H||!H.time) throw new Error("Open-Meteo sent no hourly data");
+  const hf=H.sensible_heat_flux||[], bl=H.boundary_layer_height||[], sw=H.shortwave_radiation||[], tt=H.temperature_2m||[];
+  if(!bl.some(v=>v!=null)) throw new Error("no boundary layer height in the answer");
+  const haveHf=hf.some(v=>v!=null), haveSw=sw.some(v=>v!=null);
+  if(!haveHf&&!haveSw) throw new Error("no surface heating in the answer");
+  // Weather models differ on the sign of the heat flux. In strong sun the ground heats the air,
+  // so if the numbers are mostly negative then, this model counts downward as positive: flip it.
+  let sign=1;
+  if(haveHf&&haveSw){let sum=0; H.time.forEach((_,i)=>{if(sw[i]>300&&hf[i]!=null) sum+=hf[i];}); if(sum<0) sign=-1;}
+  const m=new Map();
+  H.time.forEach((t,i)=>{
+    if(bl[i]==null) return;
+    // Fallback when the model sends no heat flux: about 30 % of the sunshine reaching dry ground heats the air.
+    const heat=haveHf?(hf[i]==null?null:sign*hf[i]):(sw[i]==null?null:0.3*sw[i]);
+    if(heat==null) return;
+    const T=(tt[i]!=null?tt[i]:15)+273.15;
+    const w=heat>0&&bl[i]>0?Math.cbrt(9.81/T*heat/1005*bl[i]):0;
+    m.set(t*1000,{w,heat,bl:bl[i],est:!haveHf});
+  });
+  return m;
+}
+const thermalPenalty=w=>w>=3?15:w>=2?10:w>=1?5:0;
+
 // ---------- G-AIRMETs and pilot reports ----------
 // aviationweather.gov does not let other web pages read its data. A timed job in this repository
 // (.github/workflows/fetch-wx.yml) downloads it every 30 minutes and saves wx.json on the "data" branch.
@@ -730,7 +762,7 @@ function renderAware(){
 }
 
 // ---------- rendering ----------
-const state={metar:null, taf:null, nws:null, src:"TAF", view:null, nearby:null, alerts:null, sigmets:null, afd:null, model:null, wx:null, scoreOpen:null, flightOpen:false};
+const state={thermal:null, metar:null, taf:null, nws:null, src:"TAF", view:null, nearby:null, alerts:null, sigmets:null, afd:null, model:null, wx:null, scoreOpen:null, flightOpen:false};
 
 // ---------- flight-conditions score (0-100, advisory) ----------
 // Start at 100, subtract penalties, then apply caps. One score per hour, assuming the best runway is used.
@@ -840,7 +872,7 @@ function scoreHour(t,wind,alts){
       if(s>=40) P.push([10,txt]); else if(s>=25) P.push([5,txt]);}
   } else miss.push("model winds aloft: wind-shear, turbulence and mountain-wave estimates"+(state.model?" (model does not cover this hour)":" (Open-Meteo not loaded)"));
   // G-AIRMETs (forecast maps, a snapshot every 3 hours, 12 hours ahead) and pilot reports
-  let gNote="";
+  let gNote="", sameBumps="";
   if(wxFresh()&&state.wx.gairmet&&state.wx.gairmet.ok){
     const g=state.wx.gairmet, vts=(g.validTimes||[]).map(Date.parse).filter(Boolean);
     if(vts.length&&+t>=Math.min(...vts)-1.5*3600e3&&+t<=Math.max(...vts)+1.5*3600e3){
@@ -849,6 +881,7 @@ function scoreHour(t,wind,alts){
       if(has("LLWS").length) C.push([35,"G-AIRMET: low-level wind shear over KCFO (airspeed change of 20 kt or more below 2,000 ft above ground)"]);
       if(has("SFC_WND").length) C.push([35,"G-AIRMET: sustained surface wind over 30 kt"]);
       const tb=near.filter(x=>/^TURB/.test(x.hazard||"")&&lvl(x.base)<=8000);
+      if(tb.length) sameBumps="the G-AIRMET for moderate turbulence";
       if(tb.length) P.push([20,`G-AIRMET: moderate turbulence over KCFO from ${lvl(tb[0].base)?lvl(tb[0].base).toLocaleString()+" ft":"the surface"} to ${lvl(tb[0].top).toLocaleString()} ft MSL`]);
       if(has("IFR").length) P.push([10,`G-AIRMET: IFR conditions (ceiling under 1,000 ft or visibility under 3 SM) forecast in the area${has("IFR")[0].due_to?" ("+has("IFR")[0].due_to+")":""}`]);
     } else gNote="The G-AIRMET does not reach this hour yet (it looks only 12 hours ahead).";
@@ -857,9 +890,18 @@ function scoreHour(t,wind,alts){
     const pr=(state.wx.pirep.items||[]).filter(p=>{const o=p.obsTime*1000; return p.distNm<=30&&+t>=o-3600e3&&+t<=o+2*3600e3&&(p.fltLvl==null||p.fltLvl<=100);});
     const txt=p=>`pilot report ${hm(new Date(p.obsTime*1000))}, ${p.distNm} nm away${p.acType?", "+p.acType:""}: ${p.rawOb||""}`;
     const sev=pr.find(p=>/SEV|EXTRM/.test((p.tbInt1||"")+(p.tbInt2||""))), mod=pr.find(p=>/MOD/.test((p.tbInt1||"")+(p.tbInt2||""))), ws=pr.find(p=>/LLWS|WIND ?SHEAR|\bWS\b/i.test(p.rawOb||""));
-    if(sev) C.push([20,"severe turbulence, "+txt(sev)]); else if(mod) P.push([15,"moderate turbulence, "+txt(mod)]);
+    if(sev) C.push([20,"severe turbulence, "+txt(sev)]); else if(mod){P.push([15,"moderate turbulence, "+txt(mod)]); sameBumps=sameBumps||"the pilot report of moderate turbulence";}
     if(ws) C.push([35,"wind shear, "+txt(ws)]);
   }
+  // thermal turbulence: comfort only, so a penalty and never a cap. A G-AIRMET or pilot report of
+  // moderate turbulence describes the same bumps and costs at least as much, so then it is not added.
+  const th=state.thermal&&state.thermal.get(+t); let thNote="";
+  if(th){const pen=thermalPenalty(th.w);
+    const txt=`thermal bumps: rising air about ${th.w.toFixed(1)} m/s (${Math.round(th.w*197/10)*10} ft/min); ground heating ${Math.round(th.heat)} W/m²${th.est?" (estimated from sunshine)":""}, stirred layer ${(Math.round(th.bl*3.281/100)*100).toLocaleString()} ft deep (model)`;
+    if(pen&&sameBumps) thNote=`Not added (−${pen}), already covered by ${sameBumps}: ${txt}.`;
+    else if(pen) P.push([pen,txt]);
+    else thNote=`Thermal bumps: none expected (rising air ${th.w.toFixed(1)} m/s, under 1.0).`;
+  } else thNote="Thermal bumps not checked ("+(state.thermal?"the model does not cover this hour":"Open-Meteo thermal data not loaded")+"). This does not add a ? because it is a comfort item.";
   // official alerts for the KCFO point
   if(state.alerts){
     const rel=state.alerts.filter(a=>{const s=Date.parse(a.onset||a.effective||0), e=Date.parse(a.ends||a.expires||0); return (!e||e>=+t)&&(!s||s<=+t+3600e3);});
@@ -873,7 +915,7 @@ function scoreHour(t,wind,alts){
   if(!state.sigmets) miss.push("SIGMETs (not loaded)");
   P.sort((a,b)=>b[0]-a[0]); C.sort((a,b)=>a[0]-b[0]);
   const sum=Math.max(0,100-P.reduce((a,x)=>a+x[0],0)), score=Math.min(sum,...C.map(x=>x[0]));
-  return {t,score,sum,P,C,miss,gNote,q:miss.length>0,color:score>=80?"green":score>=40?"amber":"red"};
+  return {t,score,sum,P,C,miss,gNote,thNote,q:miss.length>0,color:score>=80?"green":score>=40?"amber":"red"};
 }
 function scoreText(sc,title){
   const L=[`${title||hm(sc.t)} score ${sc.score}${sc.q?"?":""} (${sc.color})`,"100 to start"];
@@ -882,6 +924,7 @@ function scoreText(sc,title){
   if(sc.C.length) sc.C.forEach((x,i)=>L.push(`${i===0&&x[0]<sc.sum?"Capped at":"Cap"} ${x[0]}: ${x[1]}`)); else L.push("No caps apply.");
   sc.miss.forEach(m=>L.push(`Not checked: ${m}.`));
   if(sc.gNote) L.push(sc.gNote);
+  if(sc.thNote) L.push(sc.thNote);
   L.push("Advisory only. The decision is yours.");
   return L.join("\n").replace(/&/g,"&amp;").replace(/</g,"&lt;");
 }
@@ -1034,9 +1077,10 @@ function setStatus(parts){statusEl.innerHTML=parts.join(" · ");}
 async function refresh(){
   setStatus(["Loading…"]);
   const parts=[];
-  const [m,t,n,nb,al,sg,afd,mdl,wxr]=await Promise.allSettled([fetchMETAR(),fetchTAF(),fetchNWSGrid(),fetchNearby(),fetchAlerts(),fetchSigmets(),fetchAFD(),fetchModel(),fetchWx()]);
+  const [m,t,n,nb,al,sg,afd,mdl,wxr,thr]=await Promise.allSettled([fetchMETAR(),fetchTAF(),fetchNWSGrid(),fetchNearby(),fetchAlerts(),fetchSigmets(),fetchAFD(),fetchModel(),fetchWx(),fetchThermal()]);
   state.model=mdl.status==="fulfilled"?mdl.value:null;
   state.wx=wxr.status==="fulfilled"?wxr.value:null;
+  state.thermal=thr.status==="fulfilled"?thr.value:null;
   state.nearby=nb.status==="fulfilled"?nb.value:null;
   state.alerts=al.status==="fulfilled"?al.value:null;
   state.sigmets=sg.status==="fulfilled"?sg.value:null;
@@ -1046,6 +1090,7 @@ async function refresh(){
   if(t.status==="fulfilled"){state.taf=t.value;parts.push(`KDEN TAF ✓ (issued ${timeText(t.value.issue)})`);} else parts.push(`<span class="err">KDEN TAF failed (${t.reason.message})</span>`);
   if(n.status==="fulfilled"){state.nws=n.value;parts.push("NWS hourly ✓");} else parts.push(`<span class="err">NWS hourly failed (${n.reason.message})</span>`);
   parts.push(mdl.status==="fulfilled"?"Model winds aloft ✓":`<span class="err">Model winds aloft failed (${mdl.reason.message}); scores show ? and skip the wind-shear and turbulence estimates</span>`);
+  parts.push(thr.status==="fulfilled"?"Thermal forecast ✓"+([...thr.value.values()].some(x=>x.est)?" (heating estimated from sunshine)":""):`<span class="err">Thermal forecast failed (${thr.reason.message}); thermal bumps are not in the score</span>`);
   if(state.wx){const age=Math.round((Date.now()-state.wx.time)/60000), bad=!wxFresh()||!state.wx.gairmet||!state.wx.gairmet.ok;
     parts.push(bad?`<span class="err">G-AIRMET and pilot reports: saved ${age} min ago${wxFresh()?", but the download from aviationweather.gov failed":", too old"}; check the map yourself</span>`:`G-AIRMET and pilot reports ✓ (saved ${age} min ago)`);
   } else parts.push(`<span class="err">G-AIRMET and pilot reports not loaded (${wxr.reason.message}); check the map yourself</span>`);
