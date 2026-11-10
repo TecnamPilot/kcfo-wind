@@ -1,0 +1,41 @@
+name: Fetch aviation weather
+
+# Every 30 minutes: download G-AIRMETs and pilot reports from aviationweather.gov and
+# publish them as wx.json on the "data" branch, where the app reads them.
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-wx
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch G-AIRMETs and PIREPs
+        id: fetch
+        continue-on-error: true
+        run: node scripts/fetch-wx.mjs
+      - name: Publish wx.json to the data branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test -f wx.json
+          mkdir out && mv wx.json out/ && cd out
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add wx.json
+          git commit -q -m "Aviation weather $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+      - name: Fail the run if a source did not load
+        if: steps.fetch.outcome == 'failure'
+        run: exit 1
