@@ -5,7 +5,9 @@ import { writeFileSync } from "node:fs";
 
 const KCFO = { lat: 39.7853, lon: -104.5431 };
 const PIREP_RADIUS_NM = 40;
-const UA = { "User-Agent": "kcfo-wind-fetch (GitHub Actions)" };
+// aviationweather.gov asks for a custom user agent. Its firewall answered 403 to one that
+// contained "fetch (GitHub Actions)", and 200 to this one (checked 2026-11-10).
+const UA = { "User-Agent": "kcfo-wind/1.0 (personal flight-planning page)", Accept: "*/*" };
 
 function pointInRing(lon, lat, ring) {
   let inside = false;
@@ -30,8 +32,18 @@ async function getJSON(url) {
 const out = { fetched: new Date().toISOString(), gairmet: { ok: false }, pirep: { ok: false } };
 
 try {
-  const all = await getJSON("https://aviationweather.gov/api/data/gairmet?format=json");
-  if (!Array.isArray(all)) throw new Error("unexpected G-AIRMET format");
+  // One request returns one snapshot. A G-AIRMET issue holds five: now and 3, 6, 9 and 12 hours
+  // ahead. All five are needed so the app can score a flight later today or tomorrow morning.
+  const all = [], errors = [];
+  for (const fore of [0, 3, 6, 9, 12]) {
+    try {
+      const part = await getJSON(`https://aviationweather.gov/api/data/gairmet?format=json&fore=${fore}`);
+      if (!Array.isArray(part)) throw new Error("unexpected G-AIRMET format");
+      all.push(...part);
+    } catch (e) { errors.push(`+${fore} h: ${String(e.message || e)}`); }
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  if (errors.length === 5) throw new Error(errors.join("; "));
   // "areas" counts the entries whose outline could be read. If G-AIRMETs exist but none
   // has a readable outline, the format changed and the app must not report "none over KCFO".
   let areas = 0;
@@ -48,6 +60,9 @@ try {
   const validTimes = [...new Set(all.map(g => g.validTime).filter(Boolean))].sort();
   out.gairmet = { ok: all.length === 0 || areas > 0, total: all.length, areas, validTimes, items };
   if (all.length > 0 && areas === 0) out.gairmet.error = "no readable outlines: data format may have changed";
+  // Snapshots that did not load are simply absent from validTimes, so the app shows "?" for
+  // the hours they would have covered instead of treating them as clear.
+  if (errors.length) out.gairmet.missing = errors;
 } catch (e) { out.gairmet = { ok: false, error: String(e.message || e) }; }
 
 try {
