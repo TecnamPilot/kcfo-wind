@@ -12,18 +12,18 @@
 <style>
 :root{
   --bg:#f6f7f9;--card:#ffffff;--ink:#16191d;--muted:#5d6670;--line:#d9dee4;
-  --green:#1f9d55;--green-bg:#e3f6ea;--red:#c62828;--red-bg:#fde7e7;--grey:#6b7280;--grey-bg:#eceef1;
+  --blue:#1d4ed8;--blue-bg:#e1eaff;--mag:#b0138f;--mag-bg:#fbe3f5;--green:#1f9d55;--green-bg:#e3f6ea;--red:#c62828;--red-bg:#fde7e7;--grey:#6b7280;--grey-bg:#eceef1;
   --accent:#2563eb;--amber:#a15c00;--amber-bg:#fdefd0;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#111418;--card:#1a1f25;--ink:#e8ebef;--muted:#9aa4af;--line:#2c333b;
-    --green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;
+    --blue:#7aa7ff;--blue-bg:#14244a;--mag:#f472d0;--mag-bg:#3a1232;--green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;
   }
 }
 :root[data-theme="dark"]{
   --bg:#111418;--card:#1a1f25;--ink:#e8ebef;--muted:#9aa4af;--line:#2c333b;
-  --green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;
+  --blue:#7aa7ff;--blue-bg:#14244a;--mag:#f472d0;--mag-bg:#3a1232;--green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -61,6 +61,12 @@ textarea{width:100%;min-height:80px;font:13px ui-monospace,Menlo,Consolas,monosp
 .tl td.red{background:var(--red-bg);color:var(--red)}
 .tl td.grey{background:var(--grey-bg);color:var(--grey)}
 .tl td.amber{background:var(--amber-bg);color:var(--amber)}
+.tl td.cat{font-weight:700;font-size:12px}
+.tl td.cat.vfr{background:var(--green-bg);color:var(--green)}
+.tl td.cat.mvfr{background:var(--blue-bg);color:var(--blue)}
+.tl td.cat.ifr{background:var(--red-bg);color:var(--red)}
+.tl td.cat.lifr{background:var(--mag-bg);color:var(--mag)}
+.tl td.cat.unk{background:var(--grey-bg);color:var(--grey)}
 .tl td.sc{font-size:15px;text-decoration:underline dotted;min-width:48px}
 .tl td.whyrow{white-space:normal;text-align:left;background:var(--bg)}
 .tl td.whyrow .scorebox{position:sticky;left:6px;width:min(100%,calc(100vw - 76px))}
@@ -149,7 +155,7 @@ a{color:var(--accent)}
       <button id="srcNws">NWS hourly (KCFO point)</button>
     </div>
   </div>
-  <p class="small" id="fcNote">KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW. NWS hourly is the National Weather Service gridded forecast for the KCFO location, including gusts. Tap a row to see that hour in the runway cards. Rows inside your flight window have a blue bar on the left. <b>Score</b> is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
+  <p class="small" id="fcNote">KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW. NWS hourly is the National Weather Service gridded forecast for the KCFO location, including gusts. Tap a row to see that hour in the runway cards. Rows inside your flight window have a blue bar on the left. <b>Cat.</b> is the flight category from the forecast ceiling (lowest broken or overcast cloud layer, in ft above ground) and visibility (in statute miles, SM): VFR = ceiling above 3,000 ft and visibility above 5 SM; MVFR = 1,000 to 3,000 ft or 3 to 5 SM; IFR = 500 to 999 ft or 1 to under 3 SM; LIFR = under 500 ft or under 1 SM. It uses the lower value of NWS hourly and the KDEN TAF; "?" means neither gives both. <b>Score</b> is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
   <div class="scroll"><table class="tl" id="timeline"></table></div>
   <div id="fcErr" class="err"></div>
 </div>
@@ -169,7 +175,7 @@ a{color:var(--accent)}
     <ol>
       <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (08 = 091°, 26 = 271°, 17 = 180°, 35 = 360°) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about 8° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
-      <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the full speed is counted as both crosswind and tailwind.</li>
+      <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the runway colors test the full speed both as crosswind and as tailwind. The score counts only the worse of those two penalties, because the wind cannot be fully across and fully behind you at the same moment.</li>
       <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your personal max tailwind (default 6 kt). A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
       <li><b>Calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
@@ -741,11 +747,17 @@ function windPart(w,t,lim){
   else{
     const greens=res.filter(x=>x.green);
     const best=(greens.length?greens:ok).reduce((a,b)=>b.xwMax<a.xwMax?b:a);
-    const xw=Math.round(best.xwMax), tw=Math.round(best.twMax), vr=w.vrb?", direction variable so the full wind is counted":"";
+    const xw=Math.round(best.xwMax), tw=Math.round(best.twMax);
     const xp=xw<=5?0:xw<=10?2*(xw-5):Math.min(45,10+7*(xw-10));
-    if(xp) P.push([xp,`crosswind ${xw} kt on RWY ${best.r.id} (best runway), your limit ${lim.xw} kt${vr}`]);
     const tp=Math.min(12,2*tw);
-    if(tp) P.push([tp,`tailwind ${tw} kt on RWY ${best.r.id} (best runway)${vr}`]);
+    if(w.vrb){
+      // A variable wind cannot be a full crosswind and a full tailwind at the same moment,
+      // so count only the worse of the two instead of adding them.
+      if(Math.max(xp,tp)) P.push([Math.max(xp,tp),`variable wind ${xw} kt on RWY ${best.r.id}: it could be all tailwind (−${tp}) or all crosswind (−${xp}), the worse one is counted`]);
+    } else {
+      if(xp) P.push([xp,`crosswind ${xw} kt on RWY ${best.r.id} (best runway), your limit ${lim.xw} kt`]);
+      if(tp) P.push([tp,`tailwind ${tw} kt on RWY ${best.r.id} (best runway)`]);
+    }
     P.best=best.r.id;
   }
   if(spread>4) P.push([Math.min(30,3*(spread-4)),`gusts ${spread} kt above the steady wind`]);
@@ -757,6 +769,22 @@ function windPart(w,t,lim){
   return {P,C,best:P.best};
 }
 const partValue=p=>Math.min(100-p.P.reduce((a,x)=>a+x[0],0), ...p.C.map(x=>x[0]), 100);
+// Flight category for one hour, from the same forecast ceiling and visibility the score uses:
+// the lower value of NWS hourly (KCFO point) and the KDEN TAF. Standard FAA / NWS limits.
+function flightCat(t){
+  t=new Date(hourFloor(t)); const n=nwsAt(t), tc=tafCondAt(state.taf,t);
+  // A source is "complete" when it gives visibility and either a ceiling or a clear sign there is none.
+  // The TAF always lists its cloud layers, so no BKN/OVC/VV layer means no ceiling. The NWS grid leaves
+  // the ceiling empty both for "none" and for "not forecast", so sky cover of 50 % or less decides.
+  const tafOK=!!tc&&tc.vis!=null, nwsOK=!!n&&n.visSM!=null&&(n.ceilFt!=null||(n.sky!=null&&n.sky<=50));
+  if(!tafOK&&!nwsOK) return {cat:"?",cls:"unk",why:"Flight category unknown: no source gives both ceiling and visibility for this hour."};
+  const ceils=[n&&n.ceilFt!=null?[n.ceilFt,"NWS hourly"]:null, tc&&tc.ceil!=null?[tc.ceil,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
+  const viss=[n&&n.visSM!=null?[n.visSM,"NWS hourly"]:null, tc&&tc.vis!=null?[tc.vis,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
+  const c=ceils.length?ceils[0][0]:Infinity, v=viss[0][0];
+  const cat=c<500||v<1?"LIFR":c<1000||v<3?"IFR":c<=3000||v<=5?"MVFR":"VFR";
+  const ctxt=ceils.length?`ceiling ${(Math.round(c/100)*100).toLocaleString()} ft above ground (${ceils[0][1]})`:`no ceiling (${[tafOK?"KDEN TAF":null,nwsOK?"NWS hourly":null].filter(Boolean).join(", ")})`;
+  return {cat,cls:cat.toLowerCase(),why:`Flight category ${cat}: ${ctxt}, visibility ${v>=9.9?"10 or more":+v.toFixed(1)} SM (${viss[0][1]}).`};
+}
 function scoreHour(t,wind,alts){
   t=new Date(hourFloor(t)); const lim=limits(), P=[], C=[], miss=[];
   // wind: the prevailing group, or a TEMPO/PROB group if that one scores worse
@@ -978,22 +1006,22 @@ function renderTimeline(){
     err.textContent="";
   }
   const lim=limits();
-  let h=`<tr><th>Time (local / Z)</th><th>Wind (true)</th><th>Score</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
+  let h=`<tr><th>Time (local / Z)</th><th>Cat.</th><th>Wind (true)</th><th>Score</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
   rows.forEach((row,i)=>{
     const sc=scoreHour(row.time,row.wind,row.alts), scKey=row.label+(+row.time);
-    const res=evaluate(row.wind,lim,row.time);
+    const res=evaluate(row.wind,lim,row.time), fc=flightCat(row.time);
     const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
     const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(inWindow(row.time,flightWindow())?" win":"");
-    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td>`+
+    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td>`+
       res.map((x,k)=>{
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
         const altRed=altRes.filter(ar=>ar.res[k].red&&!x.red).map(ar=>`${ar.a.kind}: X${Math.round(ar.res[k].xwMax)} T${Math.round(ar.res[k].twMax)}`);
         return `<td class="c ${x.cls}">${x.calm?"calm":hw+" "+xwTxt}${altRed.length?`<span class="tempo">⚠ ${altRed.join(", ")}</span>`:""}</td>`;
       }).join("")+`</tr>`;
-    if(state.scoreOpen===scKey) h+=`<tr><td class="whyrow" colspan="7"><div class="scorebox">${scoreText(sc,timeText(row.time).split(" local")[0]+` (${row.label} wind)`)}</div></td></tr>`;
+    if(state.scoreOpen===scKey) h+=`<tr><td class="whyrow" colspan="8"><div class="scorebox">${scoreText(sc,timeText(row.time).split(" local")[0]+` (${row.label} wind)`)}<div class="small" style="margin-top:6px">${fc.why}</div></div></td></tr>`;
   });
-  if(!rows.length) h+=`<tr><td colspan="7">No forecast hours remaining in this product.</td></tr>`;
+  if(!rows.length) h+=`<tr><td colspan="8">No forecast hours remaining in this product.</td></tr>`;
   tbl.innerHTML=h;
   tbl.querySelectorAll("td[data-sc]").forEach(td=>td.addEventListener("click",e=>{e.stopPropagation();state.scoreOpen=state.scoreOpen===td.dataset.sc?null:td.dataset.sc;renderTimeline();}));
   tbl.querySelectorAll("tr[data-i]").forEach(tr=>tr.addEventListener("click",()=>{state.view=rows[+tr.dataset.i];renderView();renderTimeline();window.scrollTo({top:document.getElementById("viewTitle").getBoundingClientRect().top+scrollY-10,behavior:"smooth"});}));
