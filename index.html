@@ -163,6 +163,7 @@ a{color:var(--accent)}
       <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the full speed is counted as both crosswind and tailwind.</li>
       <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your personal max tailwind (default 6 kt). A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
+      <li><b>Calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
       <li><b>Grey</b>: within limits but not the best choice.</li>
       <li>Distance change uses the POH correction: <b>+15 m (50 ft) per kt of tailwind</b>, <b>−5 m (16 ft) per kt of headwind</b> (P2008 TC Flight Manual §4.6 takeoff and §4.7 landing). Runways here are 2,438 m long, so distance is rarely the problem; control is.</li>
     </ol>
@@ -215,7 +216,12 @@ function directionsOf(w){
   return [w.dir];
 }
 // Returns per-runway evaluation of a wind {dir, spd, gst, vrb, from, to}
-function evaluate(w, lim){
+// KCFO tower practice (per Azat, 2026-11): in calm or variable wind, 07:00-19:00 local, tower uses RWY 26
+const TOWER_RWY="26", TOWER_FROM=7, TOWER_TO=19;
+function towerHours(t){ if(!t) return false;
+  const h=+new Intl.DateTimeFormat("en-US",{timeZone:"America/Denver",hour:"2-digit",hourCycle:"h23"}).format(new Date(t));
+  return h>=TOWER_FROM && h<TOWER_TO; }
+function evaluate(w, lim, t){
   const steady=w.spd||0, peak=Math.max(w.gst||0, steady);
   const calm = peak<3;
   const res = RWYS.map(r=>{
@@ -241,7 +247,9 @@ function evaluate(w, lim){
   });
   const ok=res.filter(x=>!x.red);
   if(ok.length){
-    if(calm) ok.forEach(x=>x.green=true);
+    const tw26=(calm||w.vrb)&&towerHours(t)?res.find(x=>x.r.id===TOWER_RWY&&!x.red):null;
+    if(tw26){ tw26.green=true; res.forEach(x=>x.towerRule=true); }
+    else if(calm) ok.forEach(x=>x.green=true);
     else {const best=Math.max(...ok.map(x=>x.headMin)); ok.forEach(x=>{if(x.headMin>=best-1)x.green=true});}
   }
   res.forEach(x=>x.cls=x.red?"red":x.green?"green":"grey");
@@ -490,9 +498,9 @@ const hourFloor=t=>Math.floor(+t/3600e3)*3600e3;
 function inWindow(t,w){return w && +t>=hourFloor(w.dep) && +t<=+w.ret;}
 function nwsAt(t){return state.nws&&state.nws.find(r=>+r.time===hourFloor(t));}
 function tafWindAt(t){ if(!state.taf||t<state.taf.from||t>=state.taf.to) return null; const a=tafAt(state.taf,new Date(hourFloor(t))); return a.prevail?a:null;}
-function chipsFor(wind,alts){
-  const res=evaluate(wind,limits());
-  const altRes=(alts||[]).map(a=>evaluate(a.wind,limits()));
+function chipsFor(wind,alts,t){
+  const res=evaluate(wind,limits(),t);
+  const altRes=(alts||[]).map(a=>evaluate(a.wind,limits(),t));
   return `<div class="chips">`+res.map((x,k)=>{const altRed=altRes.some(r=>r[k].red)&&!x.red;
     return `<span class="chip ${x.cls}" title="${x.reasons.join('; ')}">${x.r.id}${altRed?" ⚠":""}</span>`;}).join("")+`</div>`;
 }
@@ -500,9 +508,9 @@ function legHTML(title,t){
   const n=nwsAt(t), a=tafWindAt(t), sp=sunPos(t);
   let h=`<div class="leg"><b>${title}</b> · ${hm(t)} local<div class="small">`;
   h+= n?`NWS KCFO: ${windText(n.wind).split(" · ")[0]}`:"NWS hourly: not loaded or out of range";
-  h+=`</div>${n?chipsFor(n.wind):""}<div class="small" style="margin-top:6px">`;
+  h+=`</div>${n?chipsFor(n.wind,null,t):""}<div class="small" style="margin-top:6px">`;
   h+= a?`KDEN TAF: ${windText(a.prevail).split(" · ")[0]}${a.alts.length?" · "+a.alts.map(x=>x.kind+" "+windText(x.wind).split(" · ")[0]).join("; "):""}`:"KDEN TAF: does not cover this time yet (each TAF covers about 30 h; new ones come out every 6 h)";
-  h+=`</div>${a?chipsFor(a.prevail,a.alts):""}`;
+  h+=`</div>${a?chipsFor(a.prevail,a.alts,t):""}`;
   h+=`<div class="small" style="margin-top:6px">Sun: ${sp.el<-0.833?"below horizon":`${Math.round(sp.el)}° high, from ${String(Math.round(sp.az)).padStart(3,"0")}° true`}</div></div>`;
   return h;
 }
@@ -609,13 +617,15 @@ function timeText(d){
   const loc=d.toLocaleString("en-US",{timeZone:TZ,weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false});
   return `${loc} local · ${String(d.getUTCDate()).padStart(2,"0")}${String(d.getUTCHours()).padStart(2,"0")}${String(d.getUTCMinutes()).padStart(2,"0")}Z`;
 }
-function renderCards(wind){
-  const res=evaluate(wind,limits());
+function renderCards(wind,t){
+  const res=evaluate(wind,limits(),t);
   const html=res.map(x=>{
     const hwLabel=x.head>=-0.05?"Headwind":"Tailwind";
     const tag=x.cls==="green"?"BEST":x.cls==="red"?"OVER LIMIT":"USABLE";
     let why;
     if(x.red) why="Not within limits: "+x.reasons.join("; ")+".";
+    else if(x.towerRule && x.green) why=`${x.calm?"Calm":"Variable"} wind during tower hours (07:00–19:00): KCFO tower normally uses RWY 26 for takeoff and landing.`;
+    else if(x.towerRule) why=`Within limits. In ${x.calm?"calm":"variable"} wind the tower normally uses RWY 26 (07:00–19:00); you can request this runway.`;
     else if(x.calm) why="Calm: any runway; follow ATC / calm-wind runway.";
     else if(wind.vrb && x.green) why=`Variable wind (direction unknown): any runway is within limits even if all ${wind.gst||wind.spd} kt ends up as tailwind or crosswind. Pick by ATC / traffic.`;
     else if(x.green) why="Most headwind of the runways within limits.";
@@ -660,7 +670,7 @@ function renderView(){
   if(v){
     document.getElementById("viewTitle").textContent="Forecast: "+timeText(v.time);
     document.getElementById("windLine").textContent=`${v.label}: ${windText(v.wind)}`+(v.alts&&v.alts.length?` · also possible: `+v.alts.map(a=>a.kind+" "+windText(a.wind)).join("; "):"");
-    back.style.display=""; renderCards(v.wind);
+    back.style.display=""; renderCards(v.wind,v.time);
   } else if(state.metar){
     const m=state.metar;
     document.getElementById("viewTitle").textContent="Current conditions";
@@ -668,7 +678,7 @@ function renderView(){
     if(m.temp!=null && m.altim){const pa=5515+(29.92-m.altim)*1000;const isa=15-2*pa/1000;const da=Math.round((pa+120*(m.temp-isa))/100)*100;extra=` · density altitude ≈ ${da.toLocaleString()} ft`;}
     const age=m.time?Math.round((Date.now()-m.time)/60000):null;
     document.getElementById("windLine").innerHTML=`<div>${m.raw.replace(/</g,"&lt;")}</div><div class="small">Wind ${windText(m.wind)} · observed ${timeText(m.time)}${age!=null?` (${age} min ago)`:""}${extra}</div>`;
-    back.style.display="none"; renderCards(m.wind);
+    back.style.display="none"; renderCards(m.wind,m.time||new Date());
   } else {
     document.getElementById("windLine").textContent="No current observation loaded yet.";
     document.getElementById("rwys").innerHTML="";
@@ -690,8 +700,8 @@ function renderTimeline(){
   const lim=limits();
   let h=`<tr><th>Time (local / Z)</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
   rows.forEach((row,i)=>{
-    const res=evaluate(row.wind,lim);
-    const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim)}));
+    const res=evaluate(row.wind,lim,row.time);
+    const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
     const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(inWindow(row.time,flightWindow())?" win":"");
     h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td>`+
       res.map((x,k)=>{
