@@ -174,7 +174,7 @@ a{color:var(--accent)}
   <details>
     <summary>Does tailwind reduce the crosswind maximum? (short answer)</summary>
     <p><b>By the POH: no.</b> The 15 kt figure is a crosswind component only, it is "demonstrated" (shown by the test pilot), not a structural limit, and the POH does not combine it with tailwind.</p>
-    <p><b>In practice: tailwind makes the same crosswind harder.</b> In the air the airplane only feels airspeed, so a 10 kt crosswind needs the same crab angle with or without tailwind. On the ground it changes: with a tailwind you touch down faster over the ground (about 68 kt instead of 48 kt with 10 kt tail versus 10 kt head, at 52 KIAS here), the airflow over the rudder dies sooner while you are still rolling, and the wind ends up coming from behind and the side, which tries to swing the tail around. At KCFO you almost never need to accept that: one of the four runway directions always has a headwind and at most 71% of the wind as crosswind.</p>
+    <p><b>In practice: tailwind makes the same crosswind harder.</b> In the air the airplane only feels airspeed, so a 10 kt crosswind needs the same crab angle with or without tailwind. On the ground it changes: with a tailwind you touch down faster over the ground (about 84 kt instead of 64 kt with 10 kt tail versus 10 kt head, at your 65 KIAS final approach speed here), the airflow over the rudder dies sooner while you are still rolling, and the wind ends up coming from behind and the side, which tries to swing the tail around. At KCFO you almost never need to accept that: one of the four runway directions always has a headwind and at most 71% of the wind as crosswind.</p>
   </details>
 </div>
 
@@ -580,7 +580,10 @@ function renderAware(){
   // Gust spread
   const gusty=(state.nws||[]).filter(r=>inWindow(r.time,w)&&r.wind.gst);
   if(gusty.length){const g=Math.max(...gusty.map(r=>r.wind.gst-r.wind.spd));
-    items.push(`${lvl(g>=10?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${Math.round(g/2)} kt, to your 52 KIAS final approach speed. Stay below the 68 KIAS flap limit.`);}
+    const VAPP=65, VFE=68, add=g/2, vg=VAPP+add;
+    items.push(`${lvl(g>=10||vg>VFE?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${fmt(add)} kt, to your 65 KIAS final approach speed = ${fmt(vg)} KIAS. `+
+      (vg>VFE?`<b class="lvl-warn">That is above the 68 KIAS flap limit (VFE, P2008 TC POH §2.1.1, same for every flap setting).</b> With flaps out you can add at most ${VFE-VAPP} kt, so you get less gust protection than the rule asks for. Consider another time or runway, and decide your plan before you go.`
+             :`That stays at or below the 68 KIAS flap limit (VFE).`));}
   // Alerts
   if(state.alerts){
     const rel=state.alerts.filter(a=>{const s=Date.parse(a.onset||a.effective||0), e=Date.parse(a.ends||a.expires||0); return (!e||e>=+w.dep)&&(!s||s<=+w.ret);});
