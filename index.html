@@ -123,7 +123,7 @@ a{color:var(--accent)}
 <main>
 <div class="row" style="justify-content:space-between">
   <h1>KCFO Runway Wind</h1>
-  <div class="row"><span id="updTop" class="small"></span><button class="primary" id="refresh">Refresh</button></div>
+  <div class="row"><span id="updTop" class="small"></span><button id="share">Share</button><button class="primary" id="refresh">Refresh</button></div>
 </div>
 <div id="topWarn" class="err" style="display:none;margin:6px 0"></div>
 
@@ -1089,16 +1089,29 @@ function renderFlightScore(){
   const tick=llwsTick(); llwsTickEl.checked=!!tick;
   document.getElementById("llwsBox").style.display=(wxFresh()&&state.wx.gairmet&&state.wx.gairmet.ok&&!tick)?"none":"block";
   document.getElementById("llwsNote").textContent=tick?`Ticked at ${hm(new Date(tick))}; counts for hours up to ${hm(new Date(tick+LLWS_TICK_H*3600e3))} and then clears itself.`:"Ticking this turns the score red for the next 12 hours.";
+  state.shareScore=null;
   if(!w){el.innerHTML="";return;}
   const hrs=flightScore(w);
   if(!hrs.length){el.innerHTML=`<span class="small">Flight score: no forecast covers this window yet.</span>`;return;}
   const worst=hrs.reduce((x,y)=>y.sc.score<x.sc.score?y:x), q=hrs.some(h=>h.sc.q);
+  state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w};
   let h=`<div class="row"><b>Flight score</b><span class="chip sc ${worst.sc.color}" id="fsChip">${worst.sc.score}${q?"?":""}</span><span class="small">worst hour of your window (${hm(worst.sc.t)}, ${worst.src}). Tap the number for the reasons.</span></div>`;
   h+=`<div class="chips">`+hrs.map(x=>`<span class="chip ${x.sc.color}">${hm(x.sc.t)}: ${x.sc.score}${x.sc.q?"?":""}</span>`).join("")+`</div>`;
   if(state.flightOpen) h+=`<div class="scorebox" style="margin-top:8px">${scoreText(worst.sc,`${hm(worst.sc.t)} (${worst.src})`)}</div>`;
   el.innerHTML=h;
   document.getElementById("fsChip").addEventListener("click",()=>{state.flightOpen=!state.flightOpen;renderFlightScore();});
 }
+// Share: the phone's own share sheet (Messages, WhatsApp, ...) with the app link and the current flight score.
+// Only the plain app address is sent: no personal minimums, airplane or level.
+document.getElementById("share").addEventListener("click",async()=>{
+  const url=location.origin+location.pathname, sc=state.shareScore;
+  const day=sc?sc.w.dep.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"}):"";
+  const text=sc?`KCFO flight score ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}: ${sc.score} (${sc.color}). See the reasons and your own score here:`
+               :"KCFO runway wind and a 0–100 flight score with its reasons:";
+  try{ if(navigator.share){await navigator.share({title:"KCFO Runway Wind",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
+  try{await navigator.clipboard.writeText(text+" "+url); alert("Link copied. Paste it in a message to a friend.");}
+  catch(e){prompt("Copy this and send it to a friend:",text+" "+url);}
+});
 llwsTickEl.addEventListener("change",()=>{lsSet("kcfo.llwsTick",llwsTickEl.checked?String(Date.now()):"0");renderAll();});
 function windText(w){
   if(!w) return "—";
