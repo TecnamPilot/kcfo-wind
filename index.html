@@ -375,13 +375,20 @@ certEl.value=lsGet("kcfo.cert",""); ifrEl.checked=lsGet("kcfo.ifr","0")==="1"; m
 function loadSet(){MINS.forEach(m=>m.el.value=lsGet(m.key,String(m.def)));}
 MINS.forEach(m=>m.el=document.getElementById(m.id)); loadSet();
 function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
-function minsChanged(){MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
+function minsChanged(e){if(e&&e.type==="input") undoMins=null; MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
 MINS.forEach(m=>m.el.addEventListener("input",minsChanged));
 document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=m.def); minsChanged();});
+// Choosing a certificate fills in that level's suggested numbers right away (the pilot asked for that level),
+// with Undo to get the previous numbers back.
+let undoMins=null;
+certEl.addEventListener("change",()=>{const sg=SUGGEST[certEl.value]; if(!sg) return;
+  const before=MINS.map(m=>m.el.value); if(MINS.every((m,i)=>+m.el.value===sg.v[i])) return;
+  undoMins=before; MINS.forEach((m,i)=>m.el.value=sg.v[i]); MINS.forEach(m=>lsSet(m.key,m.el.value));});
 function levelChanged(){lsSet("kcfo.cert",certEl.value); lsSet("kcfo.ifr",ifrEl.checked?"1":"0"); lsSet("kcfo.me",meEl.checked?"1":"0");
   renderMins(); renderAll();}
 [certEl,ifrEl,meEl].forEach(e=>e.addEventListener("change",levelChanged));
 document.addEventListener("click",e=>{
+  if(e.target&&e.target.id==="undoMins"&&undoMins){MINS.forEach((m,i)=>m.el.value=undoMins[i]); undoMins=null; minsChanged(); return;}
   if(e.target&&e.target.id==="useSuggest"){const sg=SUGGEST[certEl.value]; if(sg){MINS.forEach((m,i)=>m.el.value=sg.v[i]); minsChanged();}}});
 function renderMins(){
   const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def);
@@ -389,7 +396,9 @@ function renderMins(){
   const sg=SUGGEST[certEl.value], u=["kt","kt","kt","kt","kt","ft","SM"], lbl=["crosswind","tailwind","wind","gust","spread","ceiling","visibility"];
   let sgt="";
   if(sg){const same=MINS.every((m,i)=>L[m.k]===sg.v[i]);
-    sgt=`Suggested starting point for ${sg.name}: ${sg.v.map((v,i)=>`${lbl[i]} ${n(v)} ${u[i]}`).join(", ")}. ${same?"These are in use.":`<button id="useSuggest">Use these</button>`}`;
+    const list=sg.v.map((v,i)=>`${lbl[i]} ${n(v)} ${u[i]}`).join(", ");
+    sgt=same?`<b>Using the ${sg.name} starting numbers</b>: ${list}.${undoMins?` <button id="undoMins">Undo</button> (back to your previous numbers)`:""}`
+            :`<b>These are your own numbers, not the ${sg.name} suggestion</b> (${list}). <button id="useSuggest">Use the suggestion</button>`;
     if(certEl.value==="student") sgt+=` <b>As a student, use the limits your instructor wrote in your solo endorsement</b> (FAR 61.87(n)); they replace these.`;
     if(certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
   document.getElementById("suggest").innerHTML=sgt;
