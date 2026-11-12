@@ -14,16 +14,17 @@
   --bg:#f6f7f9;--card:#ffffff;--ink:#16191d;--muted:#5d6670;--line:#d9dee4;
   --blue:#1d4ed8;--blue-bg:#e1eaff;--mag:#b0138f;--mag-bg:#fbe3f5;--green:#1f9d55;--green-bg:#e3f6ea;--red:#c62828;--red-bg:#fde7e7;--grey:#6b7280;--grey-bg:#eceef1;
   --accent:#2563eb;--amber:#a15c00;--amber-bg:#fdefd0;
+  --w0:#5562a8;--w1:#2f5fa8;--w2:#1f7f96;--w3:#2e8b3d;--w4:#8a7d10;--w5:#b06a12;--w6:#c0392b;--w7:#b0308a;--w8:#6d3fa0;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#111418;--card:#1a1f25;--ink:#e8ebef;--muted:#9aa4af;--line:#2c333b;
-    --blue:#7aa7ff;--blue-bg:#14244a;--mag:#f472d0;--mag-bg:#3a1232;--green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;
+    --blue:#7aa7ff;--blue-bg:#14244a;--mag:#f472d0;--mag-bg:#3a1232;--green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;--w0:#98a4e6;--w1:#6fa0e8;--w2:#5cc4d8;--w3:#6bd36b;--w4:#d9cc5a;--w5:#f0a04a;--w6:#f2706a;--w7:#ee7fc4;--w8:#b58cf0;
   }
 }
 :root[data-theme="dark"]{
   --bg:#111418;--card:#1a1f25;--ink:#e8ebef;--muted:#9aa4af;--line:#2c333b;
-  --blue:#7aa7ff;--blue-bg:#14244a;--mag:#f472d0;--mag-bg:#3a1232;--green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;
+  --blue:#7aa7ff;--blue-bg:#14244a;--mag:#f472d0;--mag-bg:#3a1232;--green:#4ade80;--green-bg:#123522;--red:#f87171;--red-bg:#3a1616;--grey:#a1a8b3;--grey-bg:#242a31;--accent:#60a5fa;--amber:#fbbf24;--amber-bg:#3b2c08;--w0:#98a4e6;--w1:#6fa0e8;--w2:#5cc4d8;--w3:#6bd36b;--w4:#d9cc5a;--w5:#f0a04a;--w6:#f2706a;--w7:#ee7fc4;--w8:#b58cf0;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -70,7 +71,9 @@ h1{white-space:nowrap}
 .tl td.grey{background:var(--grey-bg);color:var(--grey)}
 .tl td.amber{background:var(--amber-bg);color:var(--amber)}
 .tl td.cat{font-weight:700;font-size:12px}
-.tl td.cat.vfr{font-weight:400;font-size:13px}
+.tl td.cat.vfr{color:var(--green)}
+.tl td.wind{font-weight:600}
+.w0{color:var(--w0)}.w1{color:var(--w1)}.w2{color:var(--w2)}.w3{color:var(--w3)}.w4{color:var(--w4)}.w5{color:var(--w5)}.w6{color:var(--w6)}.w7{color:var(--w7)}.w8{color:var(--w8)}
 .tl td.cat.mvfr{color:var(--blue)}
 .tl td.cat.ifr{color:var(--red)}
 .tl td.cat.lifr{color:var(--mag)}
@@ -221,7 +224,7 @@ a{color:var(--accent)}
   <details>
     <summary>How to read the runway boxes and the hourly table</summary>
     <p>The <b>Takeoff</b> and <b>Landing</b> boxes at the top use the forecast for those two times. Two forecasts exist (NWS hourly for the KCFO location and the KDEN TAF). The boxes show the one that gives the lower score, and name it; the other one is summarized in one line under the boxes. The number beside each runway is the score if you use that runway. Tap a box to open its numbers and the reasons for its score.</p>
-    <p>KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW. NWS hourly is the National Weather Service gridded forecast for the KCFO location, including gusts. Tap a row to see that hour in the runway boxes under the table. Rows inside your flight window have a blue bar on the left. <b>Cat.</b> is the flight category from the forecast ceiling (lowest broken or overcast cloud layer, in ft above ground) and visibility (in statute miles, SM): VFR = ceiling above 3,000 ft and visibility above 5 SM; MVFR = 1,000 to 3,000 ft or 3 to 5 SM; IFR = 500 to 999 ft or 1 to under 3 SM; LIFR = under 500 ft or under 1 SM. It uses the lower value of NWS hourly and the KDEN TAF; "?" means neither gives both. Each runway box shows its own score next to the runway number, for when the tower gives you a runway that is usable but not the best: same rules, with that runway's crosswind and tailwind. <b>Score</b> in this table is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
+    <p>KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW. NWS hourly is the National Weather Service gridded forecast for the KCFO location, including gusts. Tap a row to see that hour in the runway boxes under the table. Rows inside your flight window have a blue bar on the left. <b>Wind</b> text is colored by speed in knots, like the windy.com map: <b class="w0">0–2</b> <b class="w1">3–6</b> <b class="w2">7–10</b> <b class="w3">11–14</b> <b class="w4">15–19</b> <b class="w5">20–24</b> <b class="w6">25–29</b> <b class="w7">30–37</b> <b class="w8">38+</b>. The steady wind and the gust each take the color of their own number. This color shows only how strong the wind is; whether it is within your limits is shown by the runway cells and the score. <b>Cat.</b> is the flight category from the forecast ceiling (lowest broken or overcast cloud layer, in ft above ground) and visibility (in statute miles, SM): VFR = ceiling above 3,000 ft and visibility above 5 SM; MVFR = 1,000 to 3,000 ft or 3 to 5 SM; IFR = 500 to 999 ft or 1 to under 3 SM; LIFR = under 500 ft or under 1 SM. It uses the lower value of NWS hourly and the KDEN TAF; "?" means neither gives both. Each runway box shows its own score next to the runway number, for when the tower gives you a runway that is usable but not the best: same rules, with that runway's crosswind and tailwind. <b>Score</b> in this table is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
   </details>
 </div>
 
@@ -975,6 +978,14 @@ function windText(w){
   if(!w.vrb) s+=` · ≈${String(((w.dir-MAGVAR_E)%360+360)%360||360).padStart(3,"0")}° magnetic`;
   return s;
 }
+// Wind text colored by speed, in the manner of windy.com: steady speed and gust each get the color of their own value
+const wcls=k=>"w"+(k<3?0:k<7?1:k<11?2:k<15?3:k<20?4:k<25?5:k<30?6:k<38?7:8);
+function windHTML(w){
+  if(!w) return "—";
+  if((w.spd||0)===0 && !w.gst) return `<span class="w0">calm</span>`;
+  const c=wcls(w.spd);
+  return `<span class="${c}">${w.vrb?"VRB":String(w.dir).padStart(3,"0")+"°T"} ${w.spd}</span>${w.gst?`<span class="${wcls(w.gst)}">G${w.gst}</span>`:""}<span class="${c}"> kt${w.from!=null?` (varying ${w.from}°–${w.to}°)`:""}</span>`;
+}
 function timeText(d){
   if(!d) return "";
   const loc=d.toLocaleString("en-US",{timeZone:TZ,weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false});
@@ -1102,7 +1113,7 @@ function renderTimeline(){
     const res=evaluate(row.wind,lim,row.time), fc=flightCat(row.time);
     const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
     const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(inWindow(row.time,flightWindow())?" win":"");
-    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td>`+
+    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td class="wind">${windHTML(row.wind)}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windHTML(a.wind)}</span>`).join(""):""}</td>`+
       res.map((x,k)=>{
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
