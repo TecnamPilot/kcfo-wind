@@ -49,6 +49,7 @@ textarea{width:100%;min-height:80px;font:13px ui-monospace,Menlo,Consolas,monosp
 .rwy summary{list-style:none;font-weight:400}
 .rwy summary::-webkit-details-marker{display:none}
 .rwy .name{font-size:22px;font-weight:700;white-space:nowrap}
+.rwy .name.long{font-size:18px;white-space:normal;line-height:1.5}
 .rwy .name .chip.sc{font-size:19px;margin-left:6px;padding:2px 10px;vertical-align:2px}
 .rwy .line{font-size:13px;font-weight:600;margin-top:2px;white-space:nowrap}
 .rwy .scorebox{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
@@ -62,6 +63,19 @@ h1{white-space:nowrap}
 .rwy td:last-child{text-align:right;font-weight:600}
 .why{font-size:13px;margin-top:6px}
 .small{font-size:12px;color:var(--muted)}
+.aptcode{font-size:1.15em;padding:0 6px;border-radius:5px;background:var(--blue-bg);color:var(--blue)}
+.aptrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
+.aptrow label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.aptrow .small{text-transform:none;letter-spacing:0;font-weight:400}
+input.apt{font-family:inherit;font-weight:700;font-size:22px;line-height:1.2;width:4.4em;padding:0 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+b.mv{color:var(--accent)}
+.mins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 14px}
+.mins label{display:flex;flex-direction:column;gap:2px;font-weight:600;font-size:14px}
+.mins label>span{font-weight:400}
+#minsLine{margin-top:6px}
+.lvl{display:flex;flex-direction:column;gap:8px;font-size:14px}
+.lvl label{font-weight:400}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff;outline:0}
 .tl{width:100%;border-collapse:collapse;font-size:13px}
 .tl th,.tl td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
 .tl th:first-child,.tl td:first-child{text-align:left}
@@ -114,20 +128,27 @@ a{color:var(--accent)}
 <body>
 <main>
 <div class="row" style="justify-content:space-between">
-  <h1>KCFO Runway Wind</h1>
-  <div class="row"><span id="updTop" class="small"></span><button class="primary" id="refresh">Refresh</button></div>
+  <h1>Runway Wind</h1>
+  <div class="row"><span id="updTop" class="small"></span><button id="share">Share</button><button class="primary" id="refresh">Refresh</button></div>
 </div>
+<div class="aptrow">
+  <label><span>Takeoff</span><input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="small" id="aptDepName"></span></label>
+  <label><span>Landing</span><input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="small" id="aptArrName"></span></label>
+</div>
+<div id="aptMsg" class="small" style="margin:0 0 6px"></div>
 <div id="topWarn" class="err" style="display:none;margin:6px 0"></div>
 
 <div class="card" id="flightCard">
   <div id="flightScore"></div>
+  <div id="minsLine" class="small"></div>
   <div class="small" style="margin-top:8px"><span class="legend"><span style="background:var(--green-bg);color:var(--green)">✓ Best</span><span style="background:var(--grey-bg);color:var(--grey)">Usable</span><span style="background:var(--red-bg);color:var(--red)">✕ Over limit</span></span>The number beside each runway is its score. Tap a box for details.</div>
   <div id="legs"></div>
   <label class="small" id="llwsBox" style="display:none;margin-top:10px"><input type="checkbox" id="llwsTick"> I looked at the <a href="https://aviationweather.gov/gfa/#gairmet" target="_blank" rel="noopener">G-AIRMET map</a> and it shows low-level wind shear (LLWS) over KCFO. <span id="llwsNote"></span> <span class="small">(Shown because the app could not read a fresh G-AIRMET itself.)</span></label>
 </div>
 
 <div class="card">
-  <h2>Hour by hour: change your flight time here</h2>
+  <h2 id="tblTitle">Hour by hour: change your flight time here</h2>
+  <div class="row seg" id="viewSel" style="margin-bottom:8px"></div>
   <div class="row">
     <label>Date <input type="date" id="fDate"></label>
     <label>Depart <input type="time" id="fTime" step="900"> <span class="small">local</span></label>
@@ -135,8 +156,8 @@ a{color:var(--accent)}
     <span id="fRange" class="small"></span>
   </div>
   <div class="row" style="margin:10px 0 6px">
-    <button id="srcTaf" class="on">KDEN TAF (6 nm NW)</button>
-    <button id="srcNws">NWS hourly (KCFO point)</button>
+    <button id="srcTaf" class="on">TAF</button>
+    <button id="srcNws">NWS hourly (airport point)</button>
     <span class="small">Tap a score for its reasons. Tap a row to see that hour's runway boxes under the table.</span>
   </div>
   <div class="scroll"><table class="tl" id="timeline"></table></div>
@@ -161,20 +182,43 @@ a{color:var(--accent)}
   <div id="aware"></div>
 </div>
 
-<div class="card">
-  <h2>Your limits and data status</h2>
-  <div class="row">
-    <label>Max crosswind <input type="number" id="xwLim" min="0" max="30" step="1"> kt <span class="small">(POH: 15)</span></label>
-    <label>Max tailwind <input type="number" id="twLim" min="0" max="20" step="1"> kt <span class="small">(personal; not in POH)</span></label>
+<div class="card" id="minsCard">
+  <details id="minsDet"><summary id="minsTitle">Your airplane and personal minimums (tap to change)</summary>
+  <div class="row" style="margin:10px 0"><b>Airplane</b> <select id="acSel"></select></div>
+  <p class="small" style="margin-top:0">Personal minimums are the limits you set for yourself, usually stricter than the law and the POH. The runway colors and the score use these numbers. They are saved only on this phone or computer; nothing is sent anywhere. A value exactly at your limit is still within it.</p>
+  <div class="lvl">
+    <div class="row"><b>I hold</b>
+      <select id="cert"><option value="">choose…</option><option value="student">Student pilot certificate</option><option value="sport">Sport pilot</option><option value="private">Private pilot</option><option value="commercial">Commercial pilot</option><option value="atp">Airline transport pilot</option></select>
+      <label><input type="checkbox" id="ratIfr"> Instrument rating</label>
+      <label><input type="checkbox" id="ratMe"> Multiengine rating</label></div>
+    <div class="row" id="trnRow"><b>Training for</b>
+      <label data-t="private"><input type="checkbox" class="trn" value="private"> Private</label>
+      <label data-t="commercial"><input type="checkbox" class="trn" value="commercial"> Commercial</label>
+      <label data-t="ifr"><input type="checkbox" class="trn" value="ifr"> Instrument</label>
+      <label data-t="me"><input type="checkbox" class="trn" value="me"> Multiengine</label></div>
   </div>
-  <div id="status" class="small" style="margin-top:8px"></div>
+  <h3 id="minsSetTitle" style="margin:12px 0 6px;font-size:15px"></h3>
+  <div id="suggest" class="small" style="margin-bottom:8px"></div>
+  <div class="mins">
+    <label>Max crosswind <span><input type="number" id="xwLim" min="1" max="30" step="1"> kt</span><span class="small" id="acXwHint"></span></label>
+    <label>Max tailwind <span><input type="number" id="twLim" min="0" max="20" step="1"> kt</span><span class="small">POH has no tailwind limit</span></label>
+    <label>Max wind <span><input type="number" id="windLim" min="5" max="40" step="1"> kt</span><span class="small">steady speed, any direction</span></label>
+    <label>Max gust <span><input type="number" id="gustLim" min="5" max="50" step="1"> kt</span><span class="small">highest gust speed</span></label>
+    <label>Max gust spread <span><input type="number" id="sprLim" min="3" max="30" step="1"> kt</span><span class="small">gust minus steady wind</span></label>
+    <label>Min ceiling <span><input type="number" id="ceilLim" min="1000" max="10000" step="500"> ft</span><span class="small">above ground; legal floor 1,000</span></label>
+    <label>Min visibility <span><input type="number" id="visLim" min="3" max="10" step="1"> SM</span><span class="small">legal floor 3</span></label>
+  </div>
+  <div class="row" style="margin-top:8px"><button id="minsReset">Reset to defaults</button><span id="minsWarn" class="small"></span></div>
+  </details>
+  <h2 style="margin-top:14px">Data status</h2>
+  <div id="status" class="small"></div>
 </div>
 
 <div class="card">
   <details>
     <summary>Paste a METAR or TAF by hand (works offline, or if a source is down)</summary>
     <p class="small">Copy the raw text from metar-taf.com, aviationweather.gov or 1800wxbrief and paste it here. Wind direction in written METAR/TAF is <b>true</b>.</p>
-    <textarea id="paste" placeholder="METAR KCFO 092247Z 10011KT 10SM CLR 20/M05 A3018"></textarea>
+    <textarea id="paste" placeholder="METAR KAPA 092247Z 10011KT 10SM CLR 20/M05 A3018"></textarea>
     <div class="row" style="margin-top:6px"><button id="usePaste">Use this text</button><span id="pasteErr" class="err"></span></div>
   </details>
 </div>
@@ -183,14 +227,14 @@ a{color:var(--accent)}
   <details>
     <summary>How the colors are decided</summary>
     <ol>
-      <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (08 = 091°, 26 = 271°, 17 = 180°, 35 = 360°) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about 8° less here), so do not mix them with these numbers.</li>
+      <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (<span id="rwTrue"></span>) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about <span id="mvTxt"></span>° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
       <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the runway colors test the full speed both as crosswind and as tailwind. The score counts only the worse of those two penalties, because the wind cannot be fully across and fully behind you at the same moment.</li>
-      <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your personal max tailwind (default 6 kt). A value exactly at the limit is not red.</li>
+      <li><b>Red</b>: crosswind above your max crosswind (the default is a student's 8 kt; the POH demonstrated value is shown next to the setting), or tailwind above your max tailwind (default 6 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
-      <li><b>Calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
+      <li><b>KCFO only, calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
       <li><b>Grey</b>: within limits but not the best choice.</li>
-      <li>Distance change uses the POH correction: <b>+15 m (50 ft) per kt of tailwind</b>, <b>−5 m (16 ft) per kt of headwind</b> (P2008 TC Flight Manual §4.6 takeoff and §4.7 landing). Runways here are 2,438 m long, so distance is rarely the problem; control is.</li>
+      <li>Distance change uses the POH correction: <span id="acDistTxt"></span>. <span id="rwLenTxt"></span></li>
     </ol>
   </details>
 </div>
@@ -200,31 +244,32 @@ a{color:var(--accent)}
     <summary>How the score is decided</summary>
     <p>The score starts at <b>100</b>. Each factor that is less than ideal takes points off. Then <b>caps</b> apply: a cap is a ceiling the score cannot rise above, used for no-go items. The score is the lower of the two. Colors follow the cockpit convention: <b>green 80–100</b> normal, <b>amber 40–79</b> caution (read the reasons), <b>red 0–39</b> a limit is exceeded or a hazard is forecast. A <b>?</b> after the number means a source did not load, so something was not checked. The flight score is the <b>worst hour</b> between departure and return, not the average.</p>
     <ul>
-      <li><b>Crosswind on the best runway</b> (gust value): free up to 5 kt, 2 points per kt from 6 to 10 kt, 7 per kt from 11 to 15 kt (15 kt = 55 at best). Every runway over a limit: cap 20.</li>
-      <li><b>Tailwind on the best runway</b>: 2 per kt, up to 12.</li>
-      <li><b>Gust spread</b> (gust minus steady wind): free up to 4 kt, then 3 per kt, up to 30. Spread 15 kt or more, or peak gust 25 kt or more: cap 35.</li>
-      <li><b>Steady wind</b>: 1 per kt from 13 to 20 kt, 15 points from 21 to 25 kt, over 25 kt: cap 35.</li>
-      <li><b>Ceiling</b> (above ground): 4,000–4,999 ft 10 points, 3,000–3,999 ft 20, under 3,000 ft cap 35, under 1,000 ft cap 10.</li>
-      <li><b>Visibility</b>: 5–6.9 SM 15 points, under 5 SM cap 35, under 3 SM cap 10.</li>
-      <li><b>Thunderstorm</b> in the TAF or hourly forecast, or a convective SIGMET over KCFO: cap 10. A slight chance only: 15 points.</li>
+      <li>Numbers in <b>blue</b> below are <a href="#minsCard">your personal minimums</a>; they change when you change them.</li>
+      <li><b>Crosswind on the best runway</b> (gust value), compared with your max crosswind of <b class="mv" id="dXw"></b> kt: free up to a third of it, then a growing penalty, so a crosswind right at your limit scores <b>55</b> at best and half of it about 95. With a 15 kt limit: free up to 5 kt, 2 points per kt from 6 to 10 kt, 7 per kt from 11 to 15 kt. Every runway over your crosswind or tailwind limit: cap 20.</li>
+      <li><b>Tailwind on the best runway</b>: 2 per kt, up to 12. Over your <b class="mv" id="dTw"></b> kt: that runway is red.</li>
+      <li><b>Gust spread</b> (gust minus steady wind): free up to 4 kt, then 3 per kt, up to 30. Spread over <b class="mv" id="dSpr"></b> kt, or peak gust over <b class="mv" id="dGust"></b> kt: cap 35.</li>
+      <li><b>Steady wind</b>: 1 per kt from 13 to 20 kt, 15 points from 21 kt up. Over <b class="mv" id="dWind"></b> kt: cap 35.</li>
+      <li><b>Ceiling</b> (above ground): under <b class="mv" id="dCeil1"></b> ft 20 points, under <b class="mv" id="dCeil2"></b> ft 10 points, under your <b class="mv" id="dCeil"></b> ft cap 35, under 1,000 ft cap 10 whatever you set.</li>
+      <li><b>Visibility</b>: under <b class="mv" id="dVis2"></b> SM 15 points, under your <b class="mv" id="dVis"></b> SM cap 35, under 3 SM cap 10 whatever you set.</li>
+      <li><b>Thunderstorm</b> in the TAF or hourly forecast, or a convective SIGMET over the airport: cap 10. A slight chance only: 15 points.</li>
       <li><b>Precipitation</b>: 20–49% chance 5 points, 50% or more 15. Freezing rain, freezing drizzle or ice pellets: cap 10. Snow: cap 30.</li>
       <li><b>Fog risk</b>: temperature within 2 °C of dew point with wind 5 kt or less around sunrise: 10 points.</li>
-      <li><b>Low-level wind shear</b>: a G-AIRMET for wind shear over KCFO, a pilot report of wind shear within 30 nm, a wind-shear group in the KDEN TAF, or a model wind change of 20 kt or more between the surface and about 900 ft above ground: cap 35. Model change of 30 kt or more up to about 2,600 ft above ground: 20 points.</li>
+      <li><b>Low-level wind shear</b>: a G-AIRMET for wind shear over the airport, a pilot report of wind shear within 30 nm, a wind-shear group in the TAF, or a model wind change of 20 kt or more between the surface and about 900 ft above ground: cap 35. Model change of 30 kt or more up to about 2,600 ft above ground: 20 points.</li>
       <li><b>Thermal bumps</b> (daytime, from the sun heating the ground): thermal strength is the average speed of the rising air, worked out from the model's ground heating (W/m²) and the depth of the layer the thermals stir. Under 1.0 m/s (200 ft/min): 0 points. 1.0–1.9 m/s: 5. 2.0–2.9 m/s: 10. 3.0 m/s (600 ft/min) or more: 15. Never a cap. Not added when a G-AIRMET or pilot report of moderate turbulence already counts for that hour.</li>
-      <li><b>Turbulence</b>: G-AIRMET for moderate turbulence reaching down to 8,000 ft MSL or lower: 20 points. Pilot report of moderate turbulence within 30 nm below 10,000 ft in the last 2 hours: 15 points; severe: cap 20. Model wind near 8,000 ft MSL of 25–34 kt 10 points, 35 kt or more 20. G-AIRMET for surface wind over 30 kt: cap 35.</li>
+      <li><b>Turbulence</b>: G-AIRMET for moderate turbulence reaching down to about 2,500 ft above the airport or lower (8,000 ft MSL at KCFO): 20 points. Pilot report of moderate turbulence within 30 nm below about 4,500 ft above the airport in the last 2 hours: 15 points; severe: cap 20. Model wind about 2,600 ft above the airport of 25–34 kt 10 points, 35 kt or more 20. G-AIRMET for surface wind over 30 kt: cap 35.</li>
       <li><b>Mountain wave</b>: model wind near 12,000 ft MSL from 240°–330° at 25–39 kt 5 points, 40 kt or more 10.</li>
-      <li><b>Alerts</b>: SIGMET over KCFO cap 15. High Wind, Winter Storm, Blizzard and similar warnings, Dense Fog Advisory: cap 15. Wind Advisory, Winter Weather Advisory: cap 39. Other alerts 5 points.</li>
+      <li><b>Alerts</b>: SIGMET over the airport cap 15. High Wind, Winter Storm, Blizzard and similar warnings, Dense Fog Advisory: cap 15. Wind Advisory, Winter Weather Advisory: cap 39. Other alerts 5 points.</li>
       <li><b>Density altitude</b>: 7,500–8,999 ft 5 points, 9,000 ft or more 10. <b>Sun glare</b> on the best runway, <b>frost</b>, <b>below −10 °C</b>: 5 points each.</li>
     </ul>
-    <p class="small">Model winds come from Open-Meteo (a computer forecast, not an official advisory). The wind-shear and turbulence numbers taken from it are estimates and have not been validated for KCFO. G-AIRMETs and pilot reports come from aviationweather.gov through a job that GitHub runs every 30 minutes, so they can be up to about an hour old; if the saved file is more than 2 hours old the score shows ? and a tick box appears so you can enter what you saw on the map. A G-AIRMET looks only 12 hours ahead. Darkness is not scored. The score knows nothing about NOTAMs, airspace restrictions, the aircraft or the pilot.</p>
+    <p class="small">Model winds come from Open-Meteo (a computer forecast, not an official advisory). The wind-shear and turbulence numbers taken from it are estimates and have not been validated for any airport. G-AIRMETs and pilot reports come from aviationweather.gov through a job that GitHub runs every 30 minutes, so they can be up to about an hour old; if the saved file is more than 2 hours old the score shows ? and a tick box appears so you can enter what you saw on the map. A G-AIRMET looks only 12 hours ahead. Darkness is not scored. The score knows nothing about NOTAMs, airspace restrictions, the aircraft or the pilot.</p>
   </details>
 </div>
 
 <div class="card">
   <details>
     <summary>How to read the runway boxes and the hourly table</summary>
-    <p>The <b>Takeoff</b> and <b>Landing</b> boxes at the top use the forecast for those two times. Two forecasts exist (NWS hourly for the KCFO location and the KDEN TAF). The boxes show the one that gives the lower score, and name it; the other one is summarized in one line under the boxes. The number beside each runway is the score if you use that runway. Tap a box to open its numbers and the reasons for its score.</p>
-    <p>KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW. NWS hourly is the National Weather Service gridded forecast for the KCFO location, including gusts. Tap a row to see that hour in the runway boxes under the table. Rows inside your flight window have a blue bar on the left. <b>Wind</b> text is colored by speed in knots, like the windy.com map: <b class="w0">0–2</b> <b class="w1">3–6</b> <b class="w2">7–10</b> <b class="w3">11–14</b> <b class="w4">15–19</b> <b class="w5">20–24</b> <b class="w6">25–29</b> <b class="w7">30–37</b> <b class="w8">38+</b>. The steady wind and the gust each take the color of their own number. This color shows only how strong the wind is; whether it is within your limits is shown by the runway cells and the score. <b>Cat.</b> is the flight category from the forecast ceiling (lowest broken or overcast cloud layer, in ft above ground) and visibility (in statute miles, SM): VFR = ceiling above 3,000 ft and visibility above 5 SM; MVFR = 1,000 to 3,000 ft or 3 to 5 SM; IFR = 500 to 999 ft or 1 to under 3 SM; LIFR = under 500 ft or under 1 SM. It uses the lower value of NWS hourly and the KDEN TAF; "?" means neither gives both. Each runway box shows its own score next to the runway number, for when the tower gives you a runway that is usable but not the best: same rules, with that runway's crosswind and tailwind. <b>Score</b> in this table is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
+    <p>The <b>Takeoff</b> and <b>Landing</b> boxes at the top use the forecast for those two times. Two forecasts exist (NWS hourly for the airport location and the nearest TAF). The boxes show the one that gives the lower score, and name it; the other one is summarized in one line under the boxes. The number beside each runway is the score if you use that runway. Tap a box to open its numbers and the reasons for its score.</p>
+    <p><span id="tafExpl"></span> NWS hourly is the National Weather Service gridded forecast for the airport location, including gusts. Tap a row to see that hour in the runway boxes under the table. Rows inside your flight window have a blue bar on the left. <b>Wind</b> text is colored by speed in knots, like the windy.com map: <b class="w0">0–2</b> <b class="w1">3–6</b> <b class="w2">7–10</b> <b class="w3">11–14</b> <b class="w4">15–19</b> <b class="w5">20–24</b> <b class="w6">25–29</b> <b class="w7">30–37</b> <b class="w8">38+</b>. The steady wind and the gust each take the color of their own number. This color shows only how strong the wind is; whether it is within your limits is shown by the runway cells and the score. <b>Cat.</b> is the flight category from the forecast ceiling (lowest broken or overcast cloud layer, in ft above ground) and visibility (in statute miles, SM): VFR = ceiling above 3,000 ft and visibility above 5 SM; MVFR = 1,000 to 3,000 ft or 3 to 5 SM; IFR = 500 to 999 ft or 1 to under 3 SM; LIFR = under 500 ft or under 1 SM. It uses the lower value of NWS hourly and the KDEN TAF; "?" means neither gives both. Each runway box shows its own score next to the runway number, for when the tower gives you a runway that is usable but not the best: same rules, with that runway's crosswind and tailwind. <b>Score</b> in this table is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
   </details>
 </div>
 
@@ -232,38 +277,144 @@ a{color:var(--accent)}
   <details>
     <summary>Does tailwind reduce the crosswind maximum? (short answer)</summary>
     <p><b>By the POH: no.</b> The 15 kt figure is a crosswind component only, it is "demonstrated" (shown by the test pilot), not a structural limit, and the POH does not combine it with tailwind.</p>
-    <p><b>In practice: tailwind makes the same crosswind harder.</b> In the air the airplane only feels airspeed, so a 10 kt crosswind needs the same crab angle with or without tailwind. On the ground it changes: with a tailwind you touch down faster over the ground (about 84 kt instead of 64 kt with 10 kt tail versus 10 kt head, at your 65 KIAS final approach speed here), the airflow over the rudder dies sooner while you are still rolling, and the wind ends up coming from behind and the side, which tries to swing the tail around. At KCFO you almost never need to accept that: one of the four runway directions always has a headwind and at most 71% of the wind as crosswind.</p>
+    <p><b>In practice: tailwind makes the same crosswind harder.</b> In the air the airplane only feels airspeed, so a 10 kt crosswind needs the same crab angle with or without tailwind. On the ground it changes: with a tailwind you touch down faster over the ground (about 84 kt instead of 64 kt with 10 kt tail versus 10 kt head, at your 65 KIAS final approach speed here), the airflow over the rudder dies sooner while you are still rolling, and the wind ends up coming from behind and the side, which tries to swing the tail around. At an airport with two crossing runways, like KCFO, you almost never need to accept that: one of the four runway directions always has a headwind and at most 71% of the wind as crosswind.</p>
   </details>
 </div>
 
-<div class="banner"><b>Advisory only.</b> This tool does the wind arithmetic. The pilot in command makes the go/no-go decision, using the official briefing, ATIS/AWOS, NOTAMs and ATC. Limits used: POH demonstrated crosswind <b>15 kt</b> (P2008 TC Flight Manual §2.1.24 and §4.5). The POH has <b>no tailwind limit</b>; the tailwind number under "Your limits" is your personal setting.</div>
+<div class="banner"><b>Advisory only.</b> This tool does the wind arithmetic. The pilot in command makes the go/no-go decision, using the official briefing, ATIS/AWOS, NOTAMs and ATC. POH demonstrated crosswind for your airplane: <b id="acBanXw"></b> (<span id="acBanSrc"></span>). The POH has <b>no tailwind limit</b>; the tailwind number under "Your personal minimums" is your own setting.</div>
 
-<div class="sub">KCFO Runway Wind for the Tecnam P2008 (Rotax 914) · Colorado Air and Space Port · elev 5,515 ft · RWY 08/26 (8,002 ft) and 17/35 (8,000 ft), asphalt</div>
+<div class="sub"><span id="aptSub"></span> · for the <span id="acSub"></span></div>
 
-<p class="small">Sources: Tecnam P2008 TC Flight Manual (Rotax 914 UL), Ed.1 Rev.3, §2.1.24, §4.5, §4.6, §4.7. Runway true headings: FAA data via AirNav. Weather: National Weather Service API (api.weather.gov); model winds aloft: Open-Meteo (open-meteo.com); G-AIRMETs and pilot reports: aviationweather.gov. Not for navigation; verify with an official briefing.</p>
+<p class="small">Sources: <span id="acSrc"></span>. Runway true headings: FAA data via AirNav. Weather: National Weather Service API (api.weather.gov); model winds aloft: Open-Meteo (open-meteo.com); G-AIRMETs and pilot reports: aviationweather.gov. Not for navigation; verify with an official briefing.</p>
 </main>
 
 <script>
 "use strict";
-const RWYS = [
-  {id:"08", tru:91,  mag:83},
-  {id:"26", tru:271, mag:263},
-  {id:"17", tru:180, mag:172},
-  {id:"35", tru:360, mag:352},
-];
-const MAGVAR_E = 8; // magnetic variation, east (FAA 2015 value)
-const KCFO = {lat:39.7853, lon:-104.5431};
+// ---------- airport ----------
+// KCFO is built in and keeps its checked setup (KDEN TAF, Denver time, BOU forecaster, nearby list).
+// Any other US airport comes from airports.json (built from OurAirports by scripts/build-airports.mjs);
+// its time zone, forecast office, METAR station and nearest TAF are looked up from api.weather.gov.
+const KCFO_APT={code:"KCFO", name:"Colorado Air and Space Port", lat:39.7853, lon:-104.5431, elev:5515, mv:8,
+  rw:[["08",91,"26",271,8002,"ASP","T"],["17",180,"35",360,8000,"ASP","T"]],
+  tz:"America/Denver", cwa:"BOU", metar:"KCFO", taf:"KDEN", tafLoc:"DEN", tafNote:"6 nm NW",
+  nearby:[{id:"KDEN",name:"Denver Intl",note:"6 nm NW"},{id:"KBKF",name:"Buckley SFB",note:"11 nm W"},
+          {id:"KAPA",name:"Centennial",note:"19 nm SW"},{id:"KBJC",name:"Rocky Mtn Metro",note:"35 nm W, near the foothills"}]};
+let APT=KCFO_APT, RWYS=[], TZ="America/Denver", MAGVAR_E=8;
+const TAFN=()=>APT.taf?APT.taf+" TAF":"TAF";
+function useAirport(a){
+  APT=a; TZ=a.tz||"America/Denver"; MAGVAR_E=a.mv;
+  // Parallel runways (17L and 17R) get the same wind, so they share one box: "17L/17R".
+  RWYS=[]; a.rw.forEach(([le,lt,he,ht,len,surf,src])=>{
+    [[le,lt],[he,ht]].forEach(([id,tru])=>{
+      const same=RWYS.find(r=>Math.abs(((r.tru-tru)+540)%360-180)<=3&&r.id.replace(/[LRC]$/,"")===id.replace(/[LRC]$/,""));
+      if(same) same.id+="/"+id; else RWYS.push({id, tru, mag:Math.round(((tru-a.mv)%360+360)%360)||360, len, surf, src});});});
+}
+// Takeoff ("dep") and landing ("arr") airport. Each keeps its own weather. When both are the same airport
+// they share one object, so nothing is loaded twice and the page looks as it does for a local flight.
+// The page code uses globals (APT, RWYS, TZ, state.metar ...); withSide() swaps them in for one airport.
+const DATA_KEYS=["metar","taf","nws","model","thermal","wx","nearby","alerts","sigmets","afd","status"];
+function savedApt(key){try{const sv=JSON.parse(localStorage.getItem(key)||"null"); if(sv&&sv.code&&sv.code!=="KCFO"&&Array.isArray(sv.rw)&&sv.rw.length) return sv;}catch(e){} return KCFO_APT;}
+const CTX={dep:{apt:savedApt("kcfo.apt"),data:{}}};
+{const a=savedApt("kcfo.aptArr"); CTX.arr=a.code===CTX.dep.apt.code?CTX.dep:{apt:a,data:{}};}
+let curSide="dep", viewSide="dep", sideBusy=false;
+const sameApt=()=>CTX.dep===CTX.arr;
+useAirport(CTX.dep.apt);
 const NWS = "https://api.weather.gov";
 const KT_PER_KMH = 1/1.852;
-const TZ = "America/Denver";
 
 // ---------- settings ----------
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
-const xwInput=document.getElementById("xwLim"), twInput=document.getElementById("twLim");
-xwInput.value=lsGet("kcfo.xw","15"); twInput.value=lsGet("kcfo.tw6","6");
-function limits(){return {xw:Math.max(0,+xwInput.value||0), tw:Math.max(0,+twInput.value||0)}}
-[xwInput,twInput].forEach(el=>el.addEventListener("input",()=>{lsSet("kcfo.xw",xwInput.value);lsSet("kcfo.tw6",twInput.value);renderAll()}));
+// Personal minimums: each pilot's own numbers, saved in this browser only (no sign-up).
+// Defaults are a student pilot's typical solo-endorsement values (Azat, 2026-11-12: start as C172 + student).
+// legal: the floor the score keeps no matter what is entered (FAA basic VFR in Class D: 1,000 ft, 3 SM).
+const MINS=[
+  {k:"xw",    id:"xwLim",  key:"kcfo.xw",         def:8,    lo:1},
+  {k:"tw",    id:"twLim",  key:"kcfo.tw6",        def:3,    lo:0},
+  {k:"wind",  id:"windLim",key:"kcfo.min.wind",   def:15,   lo:5},
+  {k:"gust",  id:"gustLim",key:"kcfo.min.gust",   def:20,   lo:5},
+  {k:"spread",id:"sprLim", key:"kcfo.min.spread", def:5,    lo:3},
+  {k:"ceil",  id:"ceilLim",key:"kcfo.min.ceil",   def:3000, lo:1000},
+  {k:"vis",   id:"visLim", key:"kcfo.min.vis",    def:5,    lo:3},
+];
+// Airplanes: POH numbers the app uses. xw = maximum demonstrated crosswind (kt); vapp = final approach
+// speed used for gust advice (KIAS); vfe / vfeTxt = flap limit; dist(tw,head) = takeoff/landing distance change.
+const AIRCRAFT={
+  c172:{name:"Cessna 172S", xw:15, vapp:65, vfe:85, src:"Cessna 172S Pilot's Operating Handbook §2 (limits) and §5 (performance chart notes)",
+    vfeTxt:"85 KIAS, the flap limit (VFE) for flaps beyond 10° (110 KIAS with flaps 10°)",
+    distTxt:"<b>+10% for every 2 kt of tailwind</b> (charts go to 10 kt tailwind), <b>−10% for every 9 kt of headwind</b> (C172S POH §5 chart notes)",
+    dist:(tw,hd)=>tw>0.5?{pct:Math.round(Math.round(tw)/2*10)}:{pct:-Math.round(Math.round(hd)/9*10)}},
+  p2008:{name:"Tecnam P2008 TC (Rotax 914)", xw:15, vapp:65, vfe:71, src:"Tecnam P2008 TC Flight Manual (Rotax 914 UL), Ed.1 Rev.3, §2.1.24, §4.5, §4.6, §4.7",
+    vfeTxt:"71 KIAS, the flap limit (VFE) in your current POH; the same limit applies with any flaps out, including flaps 15°",
+    distTxt:"<b>+15 m (50 ft) per kt of tailwind</b>, <b>−5 m (16 ft) per kt of headwind</b> (P2008 TC Flight Manual §4.6 takeoff and §4.7 landing)",
+    dist:(tw,hd)=>tw>0.5?{m:Math.round(tw)*15}:{m:-Math.round(hd)*5}},
+};
+// Before airplane choice existed, the app used fixed P2008 numbers and Azat's minimums. A phone that has
+// used the app before (it saved the NWS grid address) keeps those exactly; a new phone starts as a C172 student.
+const LEGACY={"kcfo.xw":"15","kcfo.tw6":"6","kcfo.min.wind":"25","kcfo.min.gust":"25","kcfo.min.spread":"15","kcfo.min.ceil":"3000","kcfo.min.vis":"5"};
+if(lsGet("kcfo.v2",null)===null){
+  if(lsGet("kcfo.gridUrl",null)!==null){ for(const k in LEGACY) if(lsGet(k,null)===null) lsSet(k,LEGACY[k]); if(lsGet("kcfo.ac",null)===null) lsSet("kcfo.ac","p2008"); }
+  else if(lsGet("kcfo.cert",null)===null) lsSet("kcfo.cert","student");
+  lsSet("kcfo.v2","1");
+}
+const acSel=document.getElementById("acSel");
+acSel.innerHTML=Object.entries(AIRCRAFT).map(([k,a])=>`<option value="${k}">${a.name}</option>`).join("");
+acSel.value=AIRCRAFT[lsGet("kcfo.ac","c172")]?lsGet("kcfo.ac","c172"):"c172";
+const AC=()=>AIRCRAFT[acSel.value];
+function renderAc(){const a=AC(), t=(id,v,h)=>{const e=document.getElementById(id); if(e) e[h?"innerHTML":"textContent"]=v;};
+  t("acXwHint",`${a.name} POH demonstrated: ${a.xw}`); t("acDistTxt",a.distTxt,1); t("acBanXw",a.xw+" kt"); t("acBanSrc",a.src); t("acSub",a.name); t("acSrc",a.src);}
+acSel.addEventListener("change",()=>{lsSet("kcfo.ac",acSel.value); renderAc(); renderMins(); renderAll();});
+// Suggested starting points by certificate, in MINS order: xw, tw, wind, gust, spread, ceil, vis.
+// Not FAA numbers (the FAA asks each pilot to set their own); a starting point the pilot edits.
+const SUGGEST={
+  student:   {name:"student pilot",    v:[8,3,15,20,5,3000,5]},
+  sport:     {name:"sport pilot",      v:[10,3,15,20,8,3000,5]},
+  private:   {name:"private pilot",    v:[12,5,20,25,10,3000,5]},
+  commercial:{name:"commercial pilot", v:[15,6,25,25,15,3000,5]},
+  atp:       {name:"airline transport pilot", v:[15,6,25,25,15,3000,5]},
+};
+// Two sets of minimums: solo (the original keys) and with an instructor aboard ("kcfo.cfi.*").
+// One set of minimums per pilot: the pilot in command's own (Azat, 2026-11-12: no separate instructor set).
+const certEl=document.getElementById("cert"), ifrEl=document.getElementById("ratIfr"), meEl=document.getElementById("ratMe"), trnEls=[...document.querySelectorAll(".trn")];
+certEl.value=lsGet("kcfo.cert",""); ifrEl.checked=lsGet("kcfo.ifr","0")==="1"; meEl.checked=lsGet("kcfo.me","0")==="1";
+const trnSaved=lsGet("kcfo.trn","").split(","); trnEls.forEach(e=>e.checked=trnSaved.includes(e.value));
+const RANK={student:0,sport:1,private:2,commercial:3,atp:4};
+function heldOrBelow(t){const r=RANK[certEl.value]; return t==="private"?r>=2:t==="commercial"?r>=3:t==="ifr"?ifrEl.checked:t==="me"?meEl.checked:false;}
+function training(){return trnEls.some(e=>e.checked&&!heldOrBelow(e.value));}
+function loadSet(){MINS.forEach(m=>m.el.value=lsGet(m.key,String(m.def)));}
+MINS.forEach(m=>m.el=document.getElementById(m.id)); loadSet();
+function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
+function minsChanged(){MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
+MINS.forEach(m=>m.el.addEventListener("input",minsChanged));
+document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=m.def); minsChanged();});
+function levelChanged(){lsSet("kcfo.cert",certEl.value); lsSet("kcfo.ifr",ifrEl.checked?"1":"0"); lsSet("kcfo.me",meEl.checked?"1":"0");
+  lsSet("kcfo.trn",trnEls.filter(e=>e.checked).map(e=>e.value).join(","));
+  renderMins(); renderAll();}
+[certEl,ifrEl,meEl,...trnEls].forEach(e=>e.addEventListener("change",levelChanged));
+document.addEventListener("click",e=>{
+  if(e.target&&e.target.id==="useSuggest"){const sg=SUGGEST[certEl.value]; if(sg){MINS.forEach((m,i)=>m.el.value=sg.v[i]); minsChanged();}}});
+function renderMins(){
+  const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def), tr=training();
+  // level rows: hide "training for" items already held; the solo / instructor switch only while training
+  document.querySelectorAll("#trnRow label[data-t]").forEach(l=>l.style.display=heldOrBelow(l.dataset.t)?"none":"");
+  document.getElementById("minsSetTitle").textContent="Your numbers";
+  const sg=SUGGEST[certEl.value], u=["kt","kt","kt","kt","kt","ft","SM"], lbl=["crosswind","tailwind","wind","gust","spread","ceiling","visibility"];
+  let sgt="";
+  if(sg){const same=MINS.every((m,i)=>L[m.k]===sg.v[i]);
+    sgt=`Suggested starting point for ${sg.name}: ${sg.v.map((v,i)=>`${lbl[i]} ${n(v)} ${u[i]}`).join(", ")}. ${same?"These are in use.":`<button id="useSuggest">Use these</button>`}`;
+    if(certEl.value==="student") sgt+=` <b>As a student, use the limits your instructor wrote in your solo endorsement</b> (FAR 61.87(n)); they replace these.`;
+    if(certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
+  document.getElementById("suggest").innerHTML=sgt;
+  document.getElementById("minsLine").innerHTML=`${dflt?"Default minimums":"Your minimums"}: crosswind ${L.xw}, tailwind ${L.tw}, wind ${L.wind}, gust ${L.gust}, spread ${L.spread} kt · ceiling ${n(L.ceil)} ft · visibility ${L.vis} SM. <a href="#minsCard" id="minsGo">Change</a>`;
+  const warn=[];
+  if(L.xw>AC().xw) warn.push(`Your max crosswind is above the ${AC().xw} kt the ${AC().name} POH demonstrated.`);
+  MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
+  document.getElementById("minsWarn").textContent=warn.join(" ");
+  const sp=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  sp("dXw",L.xw); sp("dTw",L.tw); sp("dTw2",L.tw); sp("dSpr",L.spread); sp("dGust",L.gust); sp("dWind",L.wind);
+  sp("dCeil",n(L.ceil)); sp("dCeil1",n(L.ceil+1000)); sp("dCeil2",n(L.ceil+2000)); sp("dVis",L.vis); sp("dVis2",L.vis+2);
+}
+document.addEventListener("click",e=>{if(e.target&&e.target.closest&&e.target.closest('a[href="#minsCard"]')){e.preventDefault(); document.getElementById("minsDet").open=true; document.getElementById("minsCard").scrollIntoView({behavior:"smooth"});}});
 
 // ---------- wind math ----------
 const rad=d=>d*Math.PI/180;
@@ -304,12 +455,12 @@ function evaluate(w, lim, t){
     const reasons=[];
     if(xwMax>lim.xw+0.05) reasons.push(`crosswind up to ${fmt(xwMax)} kt is over ${lim.xw} kt`);
     if(twMax>lim.tw+0.05) reasons.push(`tailwind up to ${fmt(twMax)} kt is over your ${lim.tw} kt`);
-    const distDelta = twMax>0.5 ? Math.round(twMax)*15 : -Math.round(Math.max(0,headMin))*5;
+    const distDelta = AC().dist(twMax, Math.max(0,headMin));
     return {r, head, xw:Math.abs(xw), side, headMin, xwMax, twMax, red:reasons.length>0, reasons, distDelta, calm};
   });
   const ok=res.filter(x=>!x.red);
   if(ok.length){
-    const tw26=(calm||w.vrb)&&towerHours(t)?res.find(x=>x.r.id===TOWER_RWY&&!x.red):null;
+    const tw26=APT.code==="KCFO"&&(calm||w.vrb)&&towerHours(t)?res.find(x=>x.r.id===TOWER_RWY&&!x.red):null;
     if(tw26){ tw26.green=true; res.forEach(x=>x.towerRule=true); }
     else if(calm) ok.forEach(x=>x.green=true);
     else {const best=Math.max(...ok.map(x=>x.headMin)); ok.forEach(x=>{if(x.headMin>=best-1)x.green=true});}
@@ -460,13 +611,14 @@ async function latestObs(id){
   }
   throw new Error("no usable report in the last "+feats.length+" observations");
 }
-async function fetchMETAR(){ return latestObs("KCFO"); }
+async function fetchMETAR(){ if(!APT.metar) throw new Error("no weather station within 30 nm"); return latestObs(APT.metar); }
 async function fetchTAF(){
+  if(!APT.taf) throw new Error("no TAF within 60 nm");
   let list=null, lastErr=null;
-  for(const loc of ["DEN","KDEN"]){
+  for(const loc of [APT.tafLoc,APT.taf]){
     try{list=await getJSON(`${NWS}/products/types/TAF/locations/${loc}`); if(list["@graph"]&&list["@graph"].length)break;}catch(e){lastErr=e}
   }
-  if(!list||!list["@graph"]||!list["@graph"].length) throw lastErr||new Error("No KDEN TAF product found");
+  if(!list||!list["@graph"]||!list["@graph"].length) throw lastErr||new Error(`No ${TAFN()} product found`);
   const prod=await getJSON(`${NWS}/products/${list["@graph"][0].id}`);
   return parseTAF(prod.productText, new Date(prod.issuanceTime||Date.now()));
 }
@@ -483,8 +635,8 @@ function expandSeries(prop){
   return out;
 }
 async function fetchNWSGrid(){
-  let gridUrl=lsGet("kcfo.gridUrl",null);
-  if(!gridUrl){const p=await getJSON(`${NWS}/points/${KCFO.lat},${KCFO.lon}`); gridUrl=p.properties.forecastGridData; lsSet("kcfo.gridUrl",gridUrl);}
+  let gridUrl=APT.code==="KCFO"?lsGet("kcfo.gridUrl",null):APT.grid;
+  if(!gridUrl){const p=await getJSON(`${NWS}/points/${APT.lat},${APT.lon}`); gridUrl=p.properties.forecastGridData; if(APT.code==="KCFO") lsSet("kcfo.gridUrl",gridUrl);}
   const g=(await getJSON(gridUrl)).properties;
   const dir=expandSeries(g.windDirection), spd=expandSeries(g.windSpeed), gst=expandSeries(g.windGust);
   const tmp=expandSeries(g.temperature), dew=expandSeries(g.dewpoint), sky=expandSeries(g.skyCover),
@@ -516,18 +668,24 @@ async function fetchNWSGrid(){
 }
 
 // ---------- model winds aloft (Open-Meteo: a free forecast service that allows browser access) ----------
-// 800 hPa is about 900 ft above KCFO, 750 hPa about 8,100 ft MSL (2,600 ft above KCFO), 650 hPa about 12,000 ft MSL.
-const FIELD_M=1681, LEVELS=[800,750,650];
+// Three pressure levels picked for the airport's elevation: "lo" about 900 ft above ground (wind shear),
+// "mid" about 2,600 ft above ground (local-flight altitude; 750 hPa = about 8,100 ft MSL at KCFO), and
+// "hi" about 12,000 ft MSL (mountain wave). Standard atmosphere: p = 1013.25 x (1 - 6.8756e-6 x ft)^5.2559.
+const PLEVELS=[1000,975,950,925,900,850,800,750,700,650,600];
+const pOf=ft=>1013.25*Math.pow(1-6.8756e-6*ft,5.2559), nearestP=ft=>PLEVELS.reduce((a,b)=>Math.abs(b-pOf(ft))<Math.abs(a-pOf(ft))?b:a);
+let FIELD_M=1681, LEVELS=[800,750,650];
+function setLevels(){FIELD_M=APT.elev/3.281; LEVELS=[nearestP(APT.elev+900),nearestP(APT.elev+2600),nearestP(12000)];}
 async function fetchModel(){
+  setLevels();
   const vars=["wind_speed_10m","wind_direction_10m"];
   LEVELS.forEach(l=>vars.push(`wind_speed_${l}hPa`,`wind_direction_${l}hPa`,`geopotential_height_${l}hPa`));
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${KCFO.lat}&longitude=${KCFO.lon}&hourly=${vars.join(",")}&wind_speed_unit=kn&timeformat=unixtime&forecast_days=7`;
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${APT.lat}&longitude=${APT.lon}&hourly=${vars.join(",")}&wind_speed_unit=kn&timeformat=unixtime&forecast_days=7`;
   const r=await fetch(url); if(!r.ok) throw new Error(`${r.status} from Open-Meteo`);
   const H=(await r.json()).hourly; if(!H||!H.time) throw new Error("Open-Meteo sent no hourly data");
   const lvl=(k,i)=>{const s=H[`wind_speed_${k}`], d=H[`wind_direction_${k}`], z=H[`geopotential_height_${k}`];
     return s&&d&&s[i]!=null&&d[i]!=null?{spd:s[i],dir:d[i],h:z&&z[i]!=null?z[i]:null}:null;};
   const m=new Map();
-  H.time.forEach((t,i)=>m.set(t*1000,{sfc:lvl("10m",i),l800:lvl("800hPa",i),l750:lvl("750hPa",i),l650:lvl("650hPa",i)}));
+  const [a,b,c]=LEVELS; H.time.forEach((t,i)=>m.set(t*1000,{sfc:lvl("10m",i),l800:lvl(a+"hPa",i),l750:lvl(b+"hPa",i),l650:lvl(c+"hPa",i)}));
   return m;
 }
 
@@ -537,7 +695,7 @@ async function fetchModel(){
 // (W/m2) and zi = depth of the layer the thermals stir (m). Separate request from fetchModel so that
 // a problem here cannot break the winds aloft.
 async function fetchThermal(){
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${KCFO.lat}&longitude=${KCFO.lon}&hourly=sensible_heat_flux,boundary_layer_height,shortwave_radiation,temperature_2m&models=gfs_seamless&timeformat=unixtime&forecast_days=7`;
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${APT.lat}&longitude=${APT.lon}&hourly=sensible_heat_flux,boundary_layer_height,shortwave_radiation,temperature_2m&models=gfs_seamless&timeformat=unixtime&forecast_days=7`;
   const r=await fetch(url); if(!r.ok) throw new Error(`${r.status} from Open-Meteo`);
   const H=(await r.json()).hourly; if(!H||!H.time) throw new Error("Open-Meteo sent no hourly data");
   const hf=H.sensible_heat_flux||[], bl=H.boundary_layer_height||[], sw=H.shortwave_radiation||[], tt=H.temperature_2m||[];
@@ -567,21 +725,104 @@ const thermalPenalty=w=>w>=3?15:w>=2?10:w>=1?5:0;
 // (.github/workflows/fetch-wx.yml) downloads it every 30 minutes and saves wx.json on the "data" branch.
 const WX_URL="https://raw.githubusercontent.com/tecnampilot/kcfo-wind/data/wx.json";
 const WX_MAX_AGE_H=2;
+// For airports other than KCFO the same job saves every G-AIRMET outline and pilot report in the US
+// (wx-us.json); the app keeps the ones over this airport and within 40 nm.
+const WXUS_URL="https://raw.githubusercontent.com/tecnampilot/kcfo-wind/data/wx-us.json";
 async function fetchWx(){
+  if(APT.code!=="KCFO"){
+    const r=await fetch(WXUS_URL,{cache:"no-store"}); if(!r.ok) throw new Error(`${r.status} from the saved US G-AIRMET file`);
+    const j=await r.json(); j.time=Date.parse(j.fetched); if(!j.time) throw new Error("saved G-AIRMET file has no time stamp");
+    if(j.gairmet&&j.gairmet.items) j.gairmet.items=j.gairmet.items.filter(x=>x.ring&&pointInRing(APT.lon,APT.lat,x.ring));
+    if(j.pirep&&j.pirep.items) j.pirep.items=j.pirep.items.map(p=>({...p,distNm:Math.round(distNm(APT,p))})).filter(p=>p.distNm<=40);
+    return j;
+  }
   const r=await fetch(WX_URL,{cache:"no-store"}); if(!r.ok) throw new Error(`${r.status} from the saved G-AIRMET file`);
   const j=await r.json(); j.time=Date.parse(j.fetched); if(!j.time) throw new Error("saved G-AIRMET file has no time stamp");
   return j;
 }
 function wxFresh(){return !!state.wx&&Date.now()-state.wx.time<WX_MAX_AGE_H*3600e3;}
 
+// ---------- choosing an airport ----------
+let AIRPORTS=null;
+const distNm=(a,b)=>{const r=d=>d*Math.PI/180, h=Math.sin(r(b.lat-a.lat)/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(r(b.lon-a.lon)/2)**2; return 3440.065*2*Math.asin(Math.sqrt(h));};
+const brgOf=(a,b)=>{const r=d=>d*Math.PI/180, y=Math.sin(r(b.lon-a.lon))*Math.cos(r(b.lat)), x=Math.cos(r(a.lat))*Math.sin(r(b.lat))-Math.sin(r(a.lat))*Math.cos(r(b.lat))*Math.cos(r(b.lon-a.lon)); return (Math.atan2(y,x)*180/Math.PI+360)%360;};
+const dirTxt=b=>["N","NE","E","SE","S","SW","W","NW"][Math.round(b/45)%8];
+async function lookupAirport(input){
+  const code=input.trim().toUpperCase();
+  if(!code) throw new Error("type an airport code, for example KAPA");
+  if(code==="KCFO"||code==="CFO"||code==="KFTG"||code==="FTG") return KCFO_APT;
+  if(!AIRPORTS){const r=await fetch("airports.json"); if(!r.ok) throw new Error(`airport list not loaded (${r.status})`); AIRPORTS=await r.json();}
+  const k=AIRPORTS[code]?code:AIRPORTS._alias[code]||(AIRPORTS["K"+code]?"K"+code:null);
+  if(!k||!AIRPORTS[k]) throw new Error(`${code} not found. Only US airports with a runway are listed.`);
+  const [name,lat,lon,elev,mv,rw]=AIRPORTS[k], a={code:k,name,lat,lon,elev:elev??0,mv,rw};
+  // The NWS "point" gives the time zone, the forecast office, the hourly-forecast grid and nearby stations.
+  const p=(await getJSON(`${NWS}/points/${lat},${lon}`)).properties;
+  a.tz=p.timeZone; a.cwa=p.cwa; a.grid=p.forecastGridData;
+  const st=await getJSON(p.observationStations);
+  const sts=(st.features||[]).map(f=>({id:f.properties.stationIdentifier,name:f.properties.name,lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0]}))
+    .map(x=>({...x,d:distNm(a,x),b:brgOf(a,x)})).sort((x,y)=>x.d-y.d);
+  const ms=sts.find(x=>x.id===k)||sts.find(x=>x.d<=30);
+  a.metar=ms?ms.id:null; a.metarNote=ms&&ms.id!==k?`${Math.round(ms.d)} nm ${dirTxt(ms.b)}`:"";
+  a.nearby=sts.filter(x=>x!==ms&&/^K/.test(x.id)).slice(0,4).map(x=>({id:x.id,name:x.name,note:`${Math.round(x.d)} nm ${dirTxt(x.b)}`}));
+  // Nearest airport that has a TAF (within 60 nm), the way KCFO uses the KDEN TAF.
+  const tl=await getJSON(`${NWS}/products/types/TAF/locations`);
+  const locs=Array.isArray(tl.locations)?tl.locations.map(x=>x.id||x):Object.keys(tl.locations||{});
+  let best=null;
+  for(const l of locs){const id=AIRPORTS[l]?l:AIRPORTS["K"+l]?"K"+l:AIRPORTS._alias[l]; if(!id||!AIRPORTS[id]) continue;
+    const q={lat:AIRPORTS[id][1],lon:AIRPORTS[id][2]}, d=distNm(a,q); if(!best||d<best.d) best={loc:l,id,d,b:brgOf(a,q)};}
+  if(best&&best.d<=60){a.taf=best.id; a.tafLoc=best.loc; a.tafNote=best.d<1?"at the airport":`${Math.round(best.d)} nm ${dirTxt(best.b)}`;}
+  return a;
+}
+function enterSide(side){const c=CTX[side]; useAirport(c.apt); DATA_KEYS.forEach(k=>state[k]=c.data[k]??null); setLevels(); curSide=side;}
+function saveSide(side){DATA_KEYS.forEach(k=>CTX[side].data[k]=state[k]);}
+function withSide(side,fn){
+  if(side===curSide||CTX[side]===CTX[curSide]) return fn();
+  const prev=curSide; saveSide(prev); enterSide(side);
+  try{return fn();} finally{saveSide(side); enterSide(prev);}
+}
+function renderApt(){
+  const a=APT, set=(id,v)=>{const e=document.getElementById(id); if(e) e.innerHTML=v;};
+  const D=CTX.dep.apt, A=CTX.arr.apt;
+  document.getElementById("aptDep").value=D.code; document.getElementById("aptArr").value=A.code;
+  document.getElementById("aptDepName").textContent=D.name; document.getElementById("aptArrName").textContent=sameApt()?"same airport (local flight)":A.name;
+  document.title=(sameApt()?D.code:D.code+"→"+A.code)+" Runway Wind";
+  document.getElementById("tblTitle").innerHTML=`Hour by hour at <span class="aptcode">${a.code}</span>: change your flight time here`;
+  const vs=document.getElementById("viewSel");
+  vs.style.display=sameApt()?"none":"";
+  vs.innerHTML=sameApt()?"":`<b>Show:</b> `+["dep","arr"].map(sd=>`<button data-side="${sd}" class="${viewSide===sd?"on":""}">${CTX[sd].apt.code} ${sd==="dep"?"takeoff":"landing"}</button>`).join("");
+  const pairs=a.rw.map(r=>`${r[0]}/${r[2]} (${r[4].toLocaleString()} ft${r[5]?", "+r[5].toLowerCase():""})`).join(", ");
+  set("aptSub",`${a.name} · elev ${Math.round(a.elev).toLocaleString()} ft · RWY ${pairs}`);
+  set("rwTrue",RWYS.map(r=>`${r.id} = ${String(r.tru).padStart(3,"0")}°`).join(", ")+(a.rw.some(r=>r[6]==="M")?"; some estimated from the runway number and magnetic variation, ±5°":""));
+  set("mvTxt",Math.round(a.mv));
+  const longest=Math.max(...a.rw.map(r=>r[4]||0));
+  set("rwLenTxt",longest>=6000?`The longest runway here is ${longest.toLocaleString()} ft, so distance is rarely the problem; control is.`:`The longest runway here is ${longest.toLocaleString()} ft: check the POH distance charts for your weight and the density altitude.`);
+  set("tafExpl",a.code==="KCFO"?"KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW.":a.taf?(a.taf===a.code?`${a.code} has its own TAF.`:`${a.code} has no TAF. The nearest TAF is ${a.taf}, ${a.tafNote}.`):`No airport within 60 nm has a TAF, so only NWS hourly is used.`);
+  const st=document.getElementById("srcTaf"); st.textContent=a.taf?`${TAFN()}${a.taf!==a.code?" ("+a.tafNote+")":""}`:"No TAF nearby"; st.disabled=!a.taf;
+  if(!a.taf&&state.src==="TAF"){state.src="NWS"; st.classList.remove("on"); document.getElementById("srcNws").classList.add("on");}
+}
+async function changeAirport(side){
+  const inp=document.getElementById(side==="dep"?"aptDep":"aptArr"), msg=document.getElementById("aptMsg");
+  const code=inp.value.trim().toUpperCase();
+  if(code===CTX[side].apt.code||(CTX[side].apt.code==="KCFO"&&["CFO","KFTG","FTG"].includes(code))){msg.textContent="";inp.value=CTX[side].apt.code;return;}
+  msg.textContent=`Looking up ${code}…`;
+  try{
+    const a=await lookupAirport(code), other=CTX[side==="dep"?"arr":"dep"];
+    saveSide(curSide);
+    CTX[side]=other.apt.code===a.code?other:{apt:a,data:{}};
+    try{localStorage.setItem(side==="dep"?"kcfo.apt":"kcfo.aptArr",JSON.stringify(a))}catch(e){}
+    if(sameApt()||!CTX[viewSide]) viewSide="dep";
+    enterSide(viewSide); state.view=null;
+    msg.textContent=""; renderApt(); renderAll(); refresh();
+  }catch(e){msg.innerHTML=`<span class="err">${String(e.message||e)}</span>`; inp.value=CTX[side].apt.code;}
+}
+["dep","arr"].forEach(sd=>{const el=document.getElementById(sd==="dep"?"aptDep":"aptArr");
+  el.addEventListener("change",()=>changeAirport(sd)); el.addEventListener("keydown",e=>{if(e.key==="Enter") e.target.blur();});});
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-side]"); if(!b) return;
+  saveSide(curSide); viewSide=b.dataset.side; enterSide(viewSide); state.view=null; renderApt(); renderAll();});
+
 // ---------- extra awareness sources (all api.weather.gov, which allows browser access) ----------
-const NEARBY=[
-  {id:"KDEN",name:"Denver Intl",note:"6 nm NW"},
-  {id:"KBKF",name:"Buckley SFB",note:"11 nm W"},
-  {id:"KAPA",name:"Centennial",note:"19 nm SW"},
-  {id:"KBJC",name:"Rocky Mtn Metro",note:"35 nm W, near the foothills"},
-];
 async function fetchNearby(){
+  const NEARBY=APT.nearby||[];
   const out=await Promise.allSettled(NEARBY.map(async s=>{
     const m=await latestObs(s.id);
     return {...s, raw:m.raw, wind:m.wind, time:m.time};
@@ -589,7 +830,7 @@ async function fetchNearby(){
   return out.map((r,i)=>r.status==="fulfilled"?r.value:{...NEARBY[i],error:r.reason.message});
 }
 async function fetchAlerts(){
-  const j=await getJSON(`${NWS}/alerts/active?point=${KCFO.lat},${KCFO.lon}`);
+  const j=await getJSON(`${NWS}/alerts/active?point=${APT.lat},${APT.lon}`);
   return (j.features||[]).map(f=>f.properties);
 }
 function pointInRing(lon,lat,ring){
@@ -608,10 +849,11 @@ function geomContains(g,lon,lat){
 }
 async function fetchSigmets(){
   const j=await getJSON(`${NWS}/aviation/sigmets`);
-  return (j.features||[]).filter(f=>geomContains(f.geometry,KCFO.lon,KCFO.lat)).map(f=>f.properties);
+  return (j.features||[]).filter(f=>geomContains(f.geometry,APT.lon,APT.lat)).map(f=>f.properties);
 }
 async function fetchAFD(){
-  const list=await getJSON(`${NWS}/products/types/AFD/locations/BOU`);
+  if(!APT.cwa) throw new Error("no forecast office");
+  const list=await getJSON(`${NWS}/products/types/AFD/locations/${APT.cwa}`);
   const id=list["@graph"]&&list["@graph"][0]&&list["@graph"][0].id; if(!id) throw new Error("no AFD found");
   const p=await getJSON(`${NWS}/products/${id}`);
   const txt=p.productText||"";
@@ -636,7 +878,7 @@ function denverDateStr(t){
 const hm=d=>d.toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false});
 
 // ---------- sun position (NOAA approximation, good to ~1°) ----------
-function sunPos(date,lat=KCFO.lat,lon=KCFO.lon){
+function sunPos(date,lat=APT.lat,lon=APT.lon){
   const jd=date/86400000+2440587.5, n=jd-2451545.0;
   const L=(280.46+0.9856474*n)%360, g=rad((357.528+0.9856003*n)%360);
   const lam=rad(L+1.915*Math.sin(g)+0.02*Math.sin(2*g)), eps=rad(23.439-0.0000004*n);
@@ -669,7 +911,7 @@ const fDate=document.getElementById("fDate"), fTime=document.getElementById("fTi
 })();
 function flightWindow(){
   if(!fDate.value||!fTime.value) return null;
-  const dep=denverToDate(fDate.value,fTime.value);
+  const tz0=TZ; TZ=CTX.dep.apt.tz||TZ; const dep=denverToDate(fDate.value,fTime.value); TZ=tz0;
   return {dep, ret:new Date(+dep+(+fDur.value)*3600e3)};
 }
 const hourFloor=t=>Math.floor(+t/3600e3)*3600e3;
@@ -699,7 +941,7 @@ function renderFlight(){
       worst.map(x=>`<span class="chip ${x.red?"red":"grey"}" title="${x.why.join(', ')}">RWY ${x.r.id}: X ${Math.round(x.xw)} · T ${Math.round(x.tw)}</span>`).join("")+`</div>`;
     const allRed=worst.every(x=>x.red);
     if(allRed) h+=`<p class="err"><b>Every runway goes over a limit at some point in your window.</b> Look at the hour-by-hour rows above to see whether it is only part of the window.</p>`;
-  } else h+=`<p class="small">No forecast covers this window yet. NWS hourly goes about 7 days out; the KDEN TAF about 30 hours.</p>`;
+  } else h+=`<p class="small">No forecast covers this window yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
   out.innerHTML=h;
 }
 function lvl(kind,txt){return `<b class="lvl-${kind}">${txt}</b>`;}
@@ -709,12 +951,12 @@ function renderAware(){
   // Density altitude
   const alt=state.metar&&state.metar.altim; const n0=nwsAt(w.dep), n1=nwsAt(w.ret);
   if(alt && (n0||n1)){
-    const pa=5515+(29.92-alt)*1000, isa=15-2*pa/1000;
+    const pa=APT.elev+(29.92-alt)*1000, isa=15-2*pa/1000;
     const da=t=>Math.round((pa+120*(t-isa))/100)*100;
     const parts=[n0&&n0.temp!=null?`departure ${da(n0.temp).toLocaleString()} ft (${Math.round(n0.temp)} °C)`:"",n1&&n1.temp!=null?`return ${da(n1.temp).toLocaleString()} ft (${Math.round(n1.temp)} °C)`:""].filter(Boolean).join(", ");
     const hi=Math.max(n0&&n0.temp!=null?da(n0.temp):0,n1&&n1.temp!=null?da(n1.temp):0);
     items.push(`${lvl(hi>8000?"warn":"info","Density altitude")}: ${parts}. Uses the current altimeter ${alt.toFixed(2)} and the forecast temperature. Above about 8,000 ft takeoff roll and climb get noticeably worse; check the POH table for that altitude.`);
-  } else items.push(`${lvl("info","Density altitude")}: needs the current KCFO altimeter and the NWS forecast temperature (not loaded).`);
+  } else items.push(`${lvl("info","Density altitude")}: needs the current ${APT.metar||APT.code} altimeter and the NWS forecast temperature (not loaded).`);
   // Sun / glare
   const ev=sunEvents(fDate.value);
   let sunTxt=`Sunrise ${ev.rise?hm(ev.rise):"?"}, sunset ${ev.set?hm(ev.set):"?"} local.`;
@@ -733,24 +975,24 @@ function renderAware(){
     const sky=Math.max(...wx.map(r=>r.sky??0)), pop=Math.max(...wx.map(r=>r.pop??0));
     const t0=n0&&n0.temp!=null?`${Math.round(n0.temp)} °C / dew point ${Math.round(n0.dew)} °C at departure`:"";
     items.push(`${lvl(frost?"warn":"ok","Frost")}: ${t0}. ${frost?"Cold, humid morning: frost on the wing is likely after a clear night. Even thin frost cuts lift; remove all of it before takeoff.":"Frost unlikely from the forecast."}`);
-    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`NWS gridded forecast: lowest ceiling about ${(Math.round(Math.min(...ceil)/100)*100).toLocaleString()} ft above ground. `:"No usable ceiling value in the NWS gridded forecast for this window; for cloud bases use the KDEN TAF (shown in the forecast section). "}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
+    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`NWS gridded forecast: lowest ceiling about ${(Math.round(Math.min(...ceil)/100)*100).toLocaleString()} ft above ground. `:"No usable ceiling value in the NWS gridded forecast for this window; for cloud bases use the ${TAFN()} (shown in the forecast section). "}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
   }
   // Gust spread
   const gusty=(state.nws||[]).filter(r=>inWindow(r.time,w)&&r.wind.gst);
   if(gusty.length){const g=Math.max(...gusty.map(r=>r.wind.gst-r.wind.spd));
-    const VAPP=65, VFE=71, add=g/2, vg=VAPP+add;
-    items.push(`${lvl(g>=10||vg>VFE?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${fmt(add)} kt, to your 65 KIAS final approach speed = ${fmt(vg)} KIAS. `+
-      (vg>VFE?`<b class="lvl-warn">That is above 71 KIAS, the flap limit (VFE) in your current POH.</b> The same limit applies with any flaps out, including flaps 15°; only flaps up (0°) has no flap limit. From 65 KIAS you can add at most ${VFE-VAPP} kt. Decide your flap setting and speed for this wind before you go.`
-             :`That stays at or below the 71 KIAS flap limit (VFE) in your current POH.`));}
+    const a=AC(), VAPP=a.vapp, VFE=a.vfe, add=g/2, vg=VAPP+add;
+    items.push(`${lvl(g>=10||vg>VFE?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${fmt(add)} kt, to a ${VAPP} KIAS final approach speed = ${fmt(vg)} KIAS. `+
+      (vg>VFE?`<b class="lvl-warn">That is above ${a.vfeTxt}.</b> From ${VAPP} KIAS you can add at most ${VFE-VAPP} kt. Decide your flap setting and speed for this wind before you go.`
+             :`That stays at or below ${a.vfeTxt}.`));}
   // Alerts
   if(state.alerts){
     const rel=state.alerts.filter(a=>{const s=Date.parse(a.onset||a.effective||0), e=Date.parse(a.ends||a.expires||0); return (!e||e>=+w.dep)&&(!s||s<=+w.ret);});
-    items.push(rel.length?`${lvl("warn","NWS alerts for KCFO")}: `+rel.map(a=>`${a.event} (${a.headline||""})`).join("; "):`${lvl("ok","NWS alerts")}: none active for KCFO during your window.`);
+    items.push(rel.length?`${lvl("warn","NWS alerts for "+APT.code)}: `+rel.map(a=>`${a.event} (${a.headline||""})`).join("; "):`${lvl("ok","NWS alerts")}: none active for ${APT.code} during your window.`);
   } else items.push(`${lvl("info","NWS alerts")}: not loaded.`);
   // SIGMETs
   if(state.sigmets){
     const rel=state.sigmets.filter(s=>{const a=Date.parse(s.start||0),b=Date.parse(s.end||0); return (!b||b>=+w.dep)&&(!a||a<=+w.ret);});
-    items.push(rel.length?`${lvl("warn","SIGMET over KCFO")}: `+rel.map(s=>`${s.phenomenon||"SIGMET"} ${s.id||""} until ${s.end?hm(new Date(s.end)):"?"}`).join("; ")+`. SIGMETs are for weather dangerous to all aircraft (severe turbulence or icing, dust, convection).`:`${lvl("ok","SIGMETs")}: none currently drawn over KCFO. Check AIRMETs (moderate turbulence, strong surface wind, IFR, mountain obscuration) on the G-AIRMET map below; they matter more for a P2008 and are not available here.`);
+    items.push(rel.length?`${lvl("warn","SIGMET over "+APT.code)}: `+rel.map(s=>`${s.phenomenon||"SIGMET"} ${s.id||""} until ${s.end?hm(new Date(s.end)):"?"}`).join("; ")+`. SIGMETs are for weather dangerous to all aircraft (severe turbulence or icing, dust, convection).`:`${lvl("ok","SIGMETs")}: none currently drawn over KCFO. Check AIRMETs (moderate turbulence, strong surface wind, IFR, mountain obscuration) on the G-AIRMET map below; they matter more for a P2008 and are not available here.`);
   } else items.push(`${lvl("info","SIGMETs")}: not loaded; use the links below.`);
   // Nearby METARs
   if(state.nearby){
@@ -758,23 +1000,23 @@ function renderAware(){
       if(s.error||!s.wind) return `<tr><td>${s.id}</td><td>${s.note}</td><td colspan="2" class="small">${s.error||"no data"}</td></tr>`;
       const age=Math.round((Date.now()-s.time)/60000);
       return `<tr><td>${s.id}</td><td class="small">${s.note}</td><td>${windText(s.wind).split(" · ")[0]}</td><td class="small mono">${(s.raw||"").replace(/</g,"&lt;")} <span ${age>75?'class="err"':""}>(${age} min ago${age>75?", old":""})</span></td></tr>`;}).join("");
-    items.push(`${lvl("info","Nearby airports right now")}: if their winds are much stronger or from a different direction than KCFO, conditions are changing or not the same across the area. A strong west wind at KBJC near the foothills, with calm at KCFO, can mean mountain-wave turbulence or a wind shift on its way.<div class="scroll"><table class="tl" style="margin-top:6px">${rows}</table></div>`);
+    items.push(`${lvl("info","Nearby airports right now")}: if their winds are much stronger or from a different direction than ${APT.code}, conditions are changing or not the same across the area.${APT.code==="KCFO"?" A strong west wind at KBJC near the foothills, with calm at KCFO, can mean mountain-wave turbulence or a wind shift on its way.":""}<div class="scroll"><table class="tl" style="margin-top:6px">${rows}</table></div>`);
   }
   // AFD
-  if(state.afd) items.push(`${lvl("info","What the Denver forecaster says about aviation")} (Area Forecast Discussion, issued ${timeText(state.afd.time)}). Look for wind-shift timing at DEN/APA; the forecaster often explains how confident they are.<div class="afd">${state.afd.text.replace(/</g,"&lt;")}</div>`);
+  if(state.afd) items.push(`${lvl("info",`What the ${APT.cwa} forecast office says about aviation`)} (Area Forecast Discussion, issued ${timeText(state.afd.time)}). Look for wind-shift timing at the airports it names; the forecaster often explains how confident they are.<div class="afd">${state.afd.text.replace(/</g,"&lt;")}</div>`);
   // Links
   items.push(`${lvl("info","Check on aviationweather.gov")} (it blocks other web pages from reading its data, so these open there):
-    <a href="https://aviationweather.gov/data/pirep/" target="_blank" rel="noopener">PIREPs</a> (pilot reports of turbulence near Denver) ·
+    <a href="https://aviationweather.gov/data/pirep/" target="_blank" rel="noopener">PIREPs</a> (pilot reports of turbulence) ·
     <a href="https://aviationweather.gov/gfa/#gairmet" target="_blank" rel="noopener">G-AIRMETs</a> (turbulence, strong surface wind, IFR, mountain obscuration) ·
     <a href="https://aviationweather.gov/gfa/" target="_blank" rel="noopener">Graphical Forecasts</a> ·
-    <a href="https://aviationweather.gov/data/windtemp/" target="_blank" rel="noopener">Winds aloft</a> (look at DEN 12,000 ft: 25 kt or more from roughly the west, 240°–300°, is the classic Front Range mountain-wave setup) ·
-    <a href="https://aviationweather.gov/data/metar/?ids=KCFO,KDEN,KAPA,KBKF,KBJC&hours=3" target="_blank" rel="noopener">METARs</a>.
+    <a href="https://aviationweather.gov/data/windtemp/" target="_blank" rel="noopener">Winds aloft</a> ${LEE_ROCKIES()?"(look at the nearest station at 12,000 ft: 25 kt or more from roughly the west, 240°–300°, is the classic Front Range mountain-wave setup)":""} ·
+    <a href="https://aviationweather.gov/data/metar/?ids=${[APT.metar||APT.code,...(APT.nearby||[]).map(n=>n.id)].join(",")}&hours=3" target="_blank" rel="noopener">METARs</a>.
     Also get an official briefing and check NOTAMs (1800wxbrief.com).`);
   el.innerHTML=items.map(i=>`<div class="item">${i}</div>`).join("");
 }
 
 // ---------- rendering ----------
-const state={thermal:null, metar:null, taf:null, nws:null, src:"TAF", view:null, nearby:null, alerts:null, sigmets:null, afd:null, model:null, wx:null, scoreOpen:null, flightOpen:false};
+const state={status:null, thermal:null, metar:null, taf:null, nws:null, src:"TAF", view:null, nearby:null, alerts:null, sigmets:null, afd:null, model:null, wx:null, scoreOpen:null, flightOpen:false};
 
 // ---------- flight-conditions score (0-100, advisory) ----------
 // Start at 100, subtract penalties, then apply caps. One score per hour, assuming the best runway is used.
@@ -782,6 +1024,8 @@ const LLWS_TICK_H=12; // a G-AIRMET looks 12 hours ahead, so the tick expires af
 const llwsTickEl=document.getElementById("llwsTick");
 function llwsTick(){const v=+lsGet("kcfo.llwsTick","0"); return v&&Date.now()-v<LLWS_TICK_H*3600e3?v:0;}
 function vecDiff(a,b){const f=w=>[w.spd*Math.sin(rad(w.dir)),w.spd*Math.cos(rad(w.dir))], [x1,y1]=f(a),[x2,y2]=f(b); return Math.hypot(x1-x2,y1-y2);}
+// The west-wind mountain-wave rule fits airports in or just east of the Rocky Mountains.
+const LEE_ROCKIES=()=>APT.lat>=35&&APT.lat<=45&&APT.lon>=-109&&APT.lon<=-102;
 const ftAgl=l=>l&&l.h!=null?Math.round((l.h-FIELD_M)*3.281/100)*100:null;
 // rwyId: score this runway (the tower may assign one that is usable but not the best).
 // Without it the best runway is assumed.
@@ -795,7 +1039,9 @@ function windPart(w,t,lim,rwyId){
     const greens=res.filter(x=>x.green);
     const best=forced||(greens.length?greens:ok).reduce((a,b)=>b.xwMax<a.xwMax?b:a);
     const xw=Math.round(best.xwMax), tw=Math.round(best.twMax);
-    const xp=xw<=5?0:xw<=10?2*(xw-5):Math.min(45,10+7*(xw-10));
+    // Penalty curve set for a 15 kt limit (15 kt = -45, i.e. 55 at best), stretched to the pilot's own
+    // crosswind limit, so a crosswind right at anyone's limit scores 55 and half the limit scores about 95.
+    const xs=xw*15/Math.max(1,lim.xw), xp=Math.round(xs<=5?0:xs<=10?2*(xs-5):Math.min(45,10+7*(xs-10)));
     const tp=Math.min(12,2*tw);
     if(w.vrb){
       // A variable wind cannot be a full crosswind and a full tailwind at the same moment,
@@ -808,16 +1054,17 @@ function windPart(w,t,lim,rwyId){
     P.best=best.r.id;
   }
   if(spread>4) P.push([Math.min(30,3*(spread-4)),`gusts ${spread} kt above the steady wind`]);
-  if(spread>=15) C.push([35,`gust spread ${spread} kt (15 kt or more)`]);
-  if(peak>=25) C.push([35,`peak gust ${peak} kt (25 kt or more)`]);
-  if(steady>25) C.push([35,`steady wind ${steady} kt (over 25 kt)`]);
+  if(spread>lim.spread) C.push([35,`gust spread ${spread} kt, over your ${lim.spread} kt limit`]);
+  if(peak>lim.gust) C.push([35,`peak gust ${peak} kt, over your ${lim.gust} kt limit`]);
+  if(steady>lim.wind) C.push([35,`steady wind ${steady} kt, over your ${lim.wind} kt limit`]);
+  else if(steady>25) P.push([15,`steady wind ${steady} kt`]);
   else if(steady>20) P.push([15,`steady wind ${steady} kt`]);
   else if(steady>12) P.push([steady-12,`steady wind ${steady} kt`]);
   return {P,C,best:P.best};
 }
 const partValue=p=>Math.min(100-p.P.reduce((a,x)=>a+x[0],0), ...p.C.map(x=>x[0]), 100);
 // Flight category for one hour, from the same forecast ceiling and visibility the score uses:
-// the lower value of NWS hourly (KCFO point) and the KDEN TAF. Standard FAA / NWS limits.
+// the lower value of NWS hourly (airport point) and the TAF. Standard FAA / NWS limits.
 function flightCat(t){
   t=new Date(hourFloor(t)); const n=nwsAt(t), tc=tafCondAt(state.taf,t);
   // A source is "complete" when it gives visibility and either a ceiling or a clear sign there is none.
@@ -825,11 +1072,11 @@ function flightCat(t){
   // the ceiling empty both for "none" and for "not forecast", so sky cover of 50 % or less decides.
   const tafOK=!!tc&&tc.vis!=null, nwsOK=!!n&&n.visSM!=null&&(n.ceilFt!=null||(n.sky!=null&&n.sky<=50));
   if(!tafOK&&!nwsOK) return {cat:"?",cls:"unk",why:"Flight category unknown: no source gives both ceiling and visibility for this hour."};
-  const ceils=[n&&n.ceilFt!=null?[n.ceilFt,"NWS hourly"]:null, tc&&tc.ceil!=null?[tc.ceil,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
-  const viss=[n&&n.visSM!=null?[n.visSM,"NWS hourly"]:null, tc&&tc.vis!=null?[tc.vis,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
+  const ceils=[n&&n.ceilFt!=null?[n.ceilFt,"NWS hourly"]:null, tc&&tc.ceil!=null?[tc.ceil,TAFN()]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
+  const viss=[n&&n.visSM!=null?[n.visSM,"NWS hourly"]:null, tc&&tc.vis!=null?[tc.vis,TAFN()]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
   const c=ceils.length?ceils[0][0]:Infinity, v=viss[0][0];
   const cat=c<500||v<1?"LIFR":c<1000||v<3?"IFR":c<=3000||v<=5?"MVFR":"VFR";
-  const ctxt=ceils.length?`ceiling ${(Math.round(c/100)*100).toLocaleString()} ft above ground (${ceils[0][1]})`:`no ceiling (${[tafOK?"KDEN TAF":null,nwsOK?"NWS hourly":null].filter(Boolean).join(", ")})`;
+  const ctxt=ceils.length?`ceiling ${(Math.round(c/100)*100).toLocaleString()} ft above ground (${ceils[0][1]})`:`no ceiling (${[tafOK?TAFN():null,nwsOK?"NWS hourly":null].filter(Boolean).join(", ")})`;
   return {cat,cls:cat.toLowerCase(),why:`Flight category ${cat}: ${ctxt}, visibility ${v>=9.9?"10 or more":+v.toFixed(1)} SM (${viss[0][1]}).`};
 }
 function scoreHour(t,wind,alts,rwyId){
@@ -839,23 +1086,23 @@ function scoreHour(t,wind,alts,rwyId){
   (alts||[]).forEach(a=>{const p=windPart(a.wind,t,lim,rwyId); if(partValue(p)<partValue(wp)){wp=p;tag=` (TAF ${a.kind} group)`;}});
   wp.P.forEach(x=>P.push([x[0],x[1]+tag])); wp.C.forEach(x=>C.push([x[0],x[1]+tag]));
   const n=nwsAt(t), tc=tafCondAt(state.taf,t), md=state.model&&state.model.get(+t);
-  // ceiling and visibility: the lower of NWS hourly and KDEN TAF
-  if(!n&&!tc) miss.push("ceiling, visibility and weather type (neither NWS hourly nor the KDEN TAF covers this hour)");
-  const ceils=[n&&n.ceilFt!=null?[n.ceilFt,"NWS hourly"]:null, tc&&tc.ceil!=null?[tc.ceil,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
+  // ceiling and visibility: the lower of NWS hourly and the TAF
+  if(!n&&!tc) miss.push(`ceiling, visibility and weather type (neither NWS hourly nor the ${TAFN()} covers this hour)`);
+  const ceils=[n&&n.ceilFt!=null?[n.ceilFt,"NWS hourly"]:null, tc&&tc.ceil!=null?[tc.ceil,TAFN()]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
   if(ceils.length){const [c,src]=ceils[0], txt=`ceiling ${(Math.round(c/100)*100).toLocaleString()} ft above ground (${src})`;
-    if(c<1000) C.push([10,txt+", under 1,000 ft"]); else if(c<3000) C.push([35,txt+", under your 3,000 ft minimum"]);
-    else if(c<4000) P.push([20,txt]); else if(c<5000) P.push([10,txt]);}
-  const viss=[n&&n.visSM!=null?[n.visSM,"NWS hourly"]:null, tc&&tc.vis!=null?[tc.vis,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
+    if(c<1000) C.push([10,txt+", under 1,000 ft (below basic VFR)"]); else if(c<lim.ceil) C.push([35,txt+`, under your ${lim.ceil.toLocaleString()} ft minimum`]);
+    else if(c<lim.ceil+1000) P.push([20,txt+", within 1,000 ft of your minimum"]); else if(c<lim.ceil+2000) P.push([10,txt+", within 2,000 ft of your minimum"]);}
+  const viss=[n&&n.visSM!=null?[n.visSM,"NWS hourly"]:null, tc&&tc.vis!=null?[tc.vis,TAFN()]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
   if(viss.length){const [v,src]=viss[0], txt=`visibility ${v<3?v.toFixed(1):Math.round(v)} SM (${src})`;
-    if(v<3) C.push([10,txt+", under 3 SM"]); else if(v<5) C.push([35,txt+", under your 5 SM minimum"]); else if(v<7) P.push([15,txt]);}
+    if(v<3) C.push([10,txt+", under 3 SM (below basic VFR)"]); else if(v<lim.vis) C.push([35,txt+`, under your ${lim.vis} SM minimum`]); else if(v<lim.vis+2) P.push([15,txt+", within 2 SM of your minimum"]);}
   // thunderstorm, freezing precipitation, snow
   const sigNow=(state.sigmets||[]).filter(s=>{const a=Date.parse(s.start||0),b=Date.parse(s.end||0); return (!b||b>=+t)&&(!a||a<=+t+3600e3);});
   const conv=sigNow.some(s=>/CONVECTIVE|\bTS\b|THUNDER/i.test((s.phenomenon||"")+" "+(s.hazard||"")+" "+(s.id||"")));
-  if(tc&&tc.ts) C.push([10,"thunderstorm or cumulonimbus cloud in the KDEN TAF"]);
+  if(tc&&tc.ts) C.push([10,`thunderstorm or cumulonimbus cloud in the ${TAFN()}`]);
   if(n&&n.wx&&n.wx.ts===2) C.push([10,"thunderstorms in the NWS hourly forecast"]);
   else if(n&&n.wx&&n.wx.ts===1&&!(tc&&tc.ts)) P.push([15,"slight chance of thunderstorms (NWS hourly)"]);
-  if(conv) C.push([10,"convective SIGMET over KCFO"]);
-  else if(sigNow.length) C.push([15,`SIGMET over KCFO (${sigNow.map(s=>s.phenomenon||s.id||"SIGMET").join(", ")})`]);
+  if(conv) C.push([10,"convective SIGMET over "+APT.code]);
+  else if(sigNow.length) C.push([15,`SIGMET over ${APT.code} (${sigNow.map(s=>s.phenomenon||s.id||"SIGMET").join(", ")})`]);
   if((tc&&tc.fz)||(n&&n.wx&&n.wx.fz)) C.push([10,"freezing rain, freezing drizzle or ice pellets forecast"]);
   if((tc&&tc.sn)||(n&&n.wx&&n.wx.sn)) C.push([30,"snow forecast"]);
   if(n&&n.pop!=null){ if(n.pop>=50) P.push([15,`chance of precipitation ${Math.round(n.pop)}%`]); else if(n.pop>=20) P.push([5,`chance of precipitation ${Math.round(n.pop)}%`]); }
@@ -867,23 +1114,24 @@ function scoreHour(t,wind,alts,rwyId){
     if(n.dew!=null&&n.temp-n.dew<=2&&calmish&&nearRise) P.push([10,`fog risk: temperature ${Math.round(n.temp)} °C within 2 °C of dew point ${Math.round(n.dew)} °C, light wind, near sunrise`]);
     if(n.temp<=2&&(n.dew==null||n.temp-n.dew<=5)&&sun.el<15) P.push([5,`frost likely (${Math.round(n.temp)} °C, humid): remove all of it before takeoff`]);
     if(n.temp<-10) P.push([5,`cold: ${Math.round(n.temp)} °C, engine preheat`]);
-    const alt=(state.metar&&state.metar.altim)||29.92, pa=5515+(29.92-alt)*1000, da=Math.round((pa+120*(n.temp-(15-2*pa/1000)))/100)*100;
+    const alt=(state.metar&&state.metar.altim)||29.92, pa=APT.elev+(29.92-alt)*1000, da=Math.round((pa+120*(n.temp-(15-2*pa/1000)))/100)*100;
     if(da>=9000) P.push([10,`density altitude ${da.toLocaleString()} ft`]); else if(da>=7500) P.push([5,`density altitude ${da.toLocaleString()} ft`]);
   } else miss.push("temperature items: fog risk, frost, density altitude (NWS hourly does not cover this hour)");
   // sun glare on the best runway
   if(wp.best&&sun.el>-1&&sun.el<25){const r=RWYS.find(x=>x.id===wp.best), d=Math.abs(((sun.az-r.tru)+540)%360-180);
     if(d<30) P.push([5,`low sun ${Math.round(d)}° off the nose on RWY ${r.id}`]);}
   // wind shear: TAF group, manual G-AIRMET tick, model estimate
-  if(tc&&tc.ws) C.push([35,`wind-shear group in the KDEN TAF (${tc.ws})`]);
+  if(tc&&tc.ws) C.push([35,`wind-shear group in the ${TAFN()} (${tc.ws})`]);
   const tick=llwsTick();
-  if(tick&&+t>=tick-3600e3&&+t<=tick+LLWS_TICK_H*3600e3) C.push([35,"you ticked: G-AIRMET shows low-level wind shear over KCFO"]);
+  if(tick&&+t>=tick-3600e3&&+t<=tick+LLWS_TICK_H*3600e3) C.push([35,"you ticked: G-AIRMET shows low-level wind shear over "+APT.code]);
   if(md&&md.sfc&&(md.l800||md.l750)){
     const a8=ftAgl(md.l800), a7=ftAgl(md.l750);
     const d8=md.l800&&(a8==null||a8>=500)?vecDiff(md.sfc,md.l800):null, d7=md.l750?vecDiff(md.sfc,md.l750):null;
     if(d8!=null&&d8>=20) C.push([35,`model estimate of wind shear: wind changes by ${Math.round(d8)} kt between the surface (${Math.round(md.sfc.spd)} kt) and about ${(a8??900).toLocaleString()} ft above ground (${String(Math.round(md.l800.dir)).padStart(3,"0")}° at ${Math.round(md.l800.spd)} kt)`]);
     else if(d7!=null&&d7>=30) P.push([20,`model estimate: wind changes by ${Math.round(d7)} kt between the surface and about ${(a7??2600).toLocaleString()} ft above ground`]);
-    if(md.l750){const s=md.l750.spd; if(s>=35) P.push([20,`turbulence likely: model wind ${Math.round(s)} kt near 8,000 ft MSL`]); else if(s>=25) P.push([10,`bumpy air possible: model wind ${Math.round(s)} kt near 8,000 ft MSL`]);}
-    if(md.l650&&md.l650.dir>=240&&md.l650.dir<=330){const s=md.l650.spd, txt=`mountain-wave setup: model wind ${String(Math.round(md.l650.dir)).padStart(3,"0")}° at ${Math.round(s)} kt near 12,000 ft MSL`;
+    const msl7=md.l750&&md.l750.h!=null?(Math.round(md.l750.h*3.281/500)*500).toLocaleString():"8,000";
+    if(md.l750){const s=md.l750.spd; if(s>=35) P.push([20,`turbulence likely: model wind ${Math.round(s)} kt near ${msl7} ft MSL`]); else if(s>=25) P.push([10,`bumpy air possible: model wind ${Math.round(s)} kt near ${msl7} ft MSL`]);}
+    if(LEE_ROCKIES()&&md.l650&&md.l650.dir>=240&&md.l650.dir<=330){const s=md.l650.spd, txt=`mountain-wave setup: model wind ${String(Math.round(md.l650.dir)).padStart(3,"0")}° at ${Math.round(s)} kt near 12,000 ft MSL`;
       if(s>=40) P.push([10,txt]); else if(s>=25) P.push([5,txt]);}
   } else miss.push("model winds aloft: wind-shear, turbulence and mountain-wave estimates"+(state.model?" (model does not cover this hour)":" (Open-Meteo not loaded)"));
   // G-AIRMETs (forecast maps, a snapshot every 3 hours, 12 hours ahead) and pilot reports
@@ -893,16 +1141,16 @@ function scoreHour(t,wind,alts,rwyId){
     if(vts.length&&+t>=Math.min(...vts)-1.5*3600e3&&+t<=Math.max(...vts)+1.5*3600e3){
       const near=(g.items||[]).filter(x=>Math.abs(Date.parse(x.validTime)-t)<3*3600e3) /* the snapshots before and after this hour */, has=h=>near.filter(x=>x.hazard===h);
       const lvl=v=>v==null||v===""||/SFC/i.test(v)?0:+v*100;
-      if(has("LLWS").length) C.push([35,"G-AIRMET: low-level wind shear over KCFO (airspeed change of 20 kt or more below 2,000 ft above ground)"]);
+      if(has("LLWS").length) C.push([35,`G-AIRMET: low-level wind shear over ${APT.code} (airspeed change of 20 kt or more below 2,000 ft above ground)`]);
       if(has("SFC_WND").length) C.push([35,"G-AIRMET: sustained surface wind over 30 kt"]);
-      const tb=near.filter(x=>/^TURB/.test(x.hazard||"")&&lvl(x.base)<=8000);
+      const tb=near.filter(x=>/^TURB/.test(x.hazard||"")&&lvl(x.base)<=Math.round((APT.elev+2500)/500)*500);
       if(tb.length) sameBumps="the G-AIRMET for moderate turbulence";
-      if(tb.length) P.push([20,`G-AIRMET: moderate turbulence over KCFO from ${lvl(tb[0].base)?lvl(tb[0].base).toLocaleString()+" ft":"the surface"} to ${lvl(tb[0].top).toLocaleString()} ft MSL`]);
+      if(tb.length) P.push([20,`G-AIRMET: moderate turbulence over ${APT.code} from ${lvl(tb[0].base)?lvl(tb[0].base).toLocaleString()+" ft":"the surface"} to ${lvl(tb[0].top).toLocaleString()} ft MSL`]);
       if(has("IFR").length) P.push([10,`G-AIRMET: IFR conditions (ceiling under 1,000 ft or visibility under 3 SM) forecast in the area${has("IFR")[0].due_to?" ("+has("IFR")[0].due_to+")":""}`]);
     } else gNote="The G-AIRMET does not reach this hour yet (it looks only 12 hours ahead).";
   } else miss.push("G-AIRMET wind shear and turbulence ("+(state.wx?(wxFresh()?"the last download failed":`saved file is ${Math.round((Date.now()-state.wx.time)/3600e3)} h old`):"saved file not loaded")+")");
   if(wxFresh()&&state.wx.pirep&&state.wx.pirep.ok){
-    const pr=(state.wx.pirep.items||[]).filter(p=>{const o=p.obsTime*1000; return p.distNm<=30&&+t>=o-3600e3&&+t<=o+2*3600e3&&(p.fltLvl==null||p.fltLvl<=100);});
+    const pr=(state.wx.pirep.items||[]).filter(p=>{const o=p.obsTime*1000; return p.distNm<=30&&+t>=o-3600e3&&+t<=o+2*3600e3&&(p.fltLvl==null||p.fltLvl*100<=Math.round((APT.elev+4500)/500)*500);});
     const txt=p=>`pilot report ${hm(new Date(p.obsTime*1000))}, ${p.distNm} nm away${p.acType?", "+p.acType:""}: ${p.rawOb||""}`;
     const sev=pr.find(p=>/SEV|EXTRM/.test((p.tbInt1||"")+(p.tbInt2||""))), mod=pr.find(p=>/MOD/.test((p.tbInt1||"")+(p.tbInt2||""))), ws=pr.find(p=>/LLWS|WIND ?SHEAR|\bWS\b/i.test(p.rawOb||""));
     if(sev) C.push([20,"severe turbulence, "+txt(sev)]); else if(mod){P.push([15,"moderate turbulence, "+txt(mod)]); sameBumps=sameBumps||"the pilot report of moderate turbulence";}
@@ -949,7 +1197,7 @@ function flightScore(w){
   for(let t=hourFloor(w.dep);t<=+w.ret;t+=3600e3){
     const cand=[]; const n=nwsAt(t), a=tafWindAt(t);
     if(n) cand.push({sc:scoreHour(t,n.wind,[]),src:"NWS hourly wind"});
-    if(a) cand.push({sc:scoreHour(t,a.prevail,a.alts),src:"KDEN TAF wind"});
+    if(a) cand.push({sc:scoreHour(t,a.prevail,a.alts),src:TAFN()+" wind"});
     if(cand.length) out.push(cand.reduce((x,y)=>y.sc.score<x.sc.score?y:x));
   }
   return out;
@@ -959,16 +1207,35 @@ function renderFlightScore(){
   const tick=llwsTick(); llwsTickEl.checked=!!tick;
   document.getElementById("llwsBox").style.display=(wxFresh()&&state.wx.gairmet&&state.wx.gairmet.ok&&!tick)?"none":"block";
   document.getElementById("llwsNote").textContent=tick?`Ticked at ${hm(new Date(tick))}; counts for hours up to ${hm(new Date(tick+LLWS_TICK_H*3600e3))} and then clears itself.`:"Ticking this turns the score red for the next 12 hours.";
+  state.shareScore=null;
   if(!w){el.innerHTML="";return;}
-  const hrs=flightScore(w);
+  // Local flight: every hour of the window at the one airport. Two airports: the takeoff airport at the
+  // departure hour and the landing airport at the return hour (the route between is not scored).
+  const hrs=sameApt()?withSide("dep",()=>flightScore(w).map(x=>({...x,apt:CTX.dep.apt.code})))
+    :[...withSide("dep",()=>flightScore({dep:w.dep,ret:w.dep}).map(x=>({...x,apt:CTX.dep.apt.code,hmT:hm(x.sc.t)}))),
+      ...withSide("arr",()=>flightScore({dep:w.ret,ret:w.ret}).map(x=>({...x,apt:CTX.arr.apt.code,hmT:hm(x.sc.t)})))];
+  hrs.forEach(x=>{if(!x.hmT) x.hmT=hm(x.sc.t);});
   if(!hrs.length){el.innerHTML=`<span class="small">Flight score: no forecast covers this window yet.</span>`;return;}
   const worst=hrs.reduce((x,y)=>y.sc.score<x.sc.score?y:x), q=hrs.some(h=>h.sc.q);
-  let h=`<div class="row"><b>Flight score</b><span class="chip sc ${worst.sc.color}" id="fsChip">${worst.sc.score}${q?"?":""}</span><span class="small">worst hour of your window (${hm(worst.sc.t)}, ${worst.src}). Tap the number for the reasons.</span></div>`;
-  h+=`<div class="chips">`+hrs.map(x=>`<span class="chip ${x.sc.color}">${hm(x.sc.t)}: ${x.sc.score}${x.sc.q?"?":""}</span>`).join("")+`</div>`;
-  if(state.flightOpen) h+=`<div class="scorebox" style="margin-top:8px">${scoreText(worst.sc,`${hm(worst.sc.t)} (${worst.src})`)}</div>`;
+  const route=sameApt()?CTX.dep.apt.code:`${CTX.dep.apt.code} → ${CTX.arr.apt.code}`;
+  state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w, route};
+  let h=`<div class="row"><b>Flight score ${route}</b><span class="chip sc ${worst.sc.color}" id="fsChip">${worst.sc.score}${q?"?":""}</span><span class="small">${sameApt()?"worst hour of your window":"lower of takeoff and landing"} (${worst.apt} ${worst.hmT}, ${worst.src}). Tap the number for the reasons.</span></div>`;
+  h+=`<div class="chips">`+hrs.map(x=>`<span class="chip ${x.sc.color}">${sameApt()?"":x.apt+" "}${x.hmT}: ${x.sc.score}${x.sc.q?"?":""}</span>`).join("")+`</div>`;
+  if(state.flightOpen) h+=`<div class="scorebox" style="margin-top:8px">${withSide(worst.apt===CTX.dep.apt.code?"dep":"arr",()=>scoreText(worst.sc,`${worst.apt} ${worst.hmT} (${worst.src})`))}</div>`;
   el.innerHTML=h;
   document.getElementById("fsChip").addEventListener("click",()=>{state.flightOpen=!state.flightOpen;renderFlightScore();});
 }
+// Share: the phone's own share sheet (Messages, WhatsApp, ...) with the app link and the current flight score.
+// Only the plain app address is sent: no personal minimums, airplane or level.
+document.getElementById("share").addEventListener("click",async()=>{
+  const url=location.origin+location.pathname, sc=state.shareScore;
+  const day=sc?sc.w.dep.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"}):"";
+  const text=sc?`${sc.route} flight score ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}: ${sc.score} (${sc.color}). See the reasons and your own score here:`
+               :APT.code+" runway wind and a 0–100 flight score with its reasons:";
+  try{ if(navigator.share){await navigator.share({title:APT.code+" Runway Wind",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
+  try{await navigator.clipboard.writeText(text+" "+url); alert("Link copied. Paste it in a message to a friend.");}
+  catch(e){prompt("Copy this and send it to a friend:",text+" "+url);}
+});
 llwsTickEl.addEventListener("change",()=>{lsSet("kcfo.llwsTick",llwsTickEl.checked?String(Date.now()):"0");renderAll();});
 function windText(w){
   if(!w) return "—";
@@ -1009,9 +1276,9 @@ function cardsHTML(wind,t,alts,label){
     else if(x.twMax>0.5) why=`Within limits but has up to ${fmt(x.twMax)} kt tailwind.`;
     else why="Within limits, less headwind than the best runway.";
     const dd=x.distDelta;
-    const dist=dd===0?"no change":(dd>0?"+":"−")+Math.abs(dd)+" m ("+(dd>0?"+":"−")+Math.round(Math.abs(dd)*3.281)+" ft)";
+    const sg=v=>(v>0?"+":"−")+Math.abs(v), dist=dd.pct!=null?(dd.pct===0?"no change":sg(dd.pct)+"%"):(dd.m===0?"no change":sg(dd.m)+" m ("+sg(Math.round(dd.m*3.281))+" ft)");
     const line=x.calm?"Calm":`${x.headMin>=0?"Head "+Math.round(x.headMin):"Tail "+Math.round(x.twMax)} · Cross ${Math.round(x.xwMax)} kt${x.side&&x.xwMax>=0.5?(x.side==="R"?" R":" L"):""}`;
-    return `<details class="rwy ${x.cls}"><summary><div class="name">RWY ${x.r.id}<span class="chip sc ${sc.color}">${sc.score}${sc.q?"?":""}</span></div>
+    return `<details class="rwy ${x.cls}"><summary><div class="name${x.r.id.length>4?" long":""}">RWY ${x.r.id}<span class="chip sc ${sc.color}">${sc.score}${sc.q?"?":""}</span></div>
       <div class="line">${x.cls==="green"?"✓ ":x.cls==="red"?"✕ ":""}${line}</div></summary>
       <div style="margin-top:6px"><span class="tag">${tag}</span></div>
       <div class="small" style="margin-top:6px">${String(x.r.tru).padStart(3,"0")}° true · ${x.r.mag}° magnetic</div>
@@ -1036,7 +1303,7 @@ function renderCards(wind,t,alts,label){
 function legPick(t){
   const cand=[], n=nwsAt(t), a=tafWindAt(t);
   if(n) cand.push({wind:n.wind,alts:[],label:"NWS hourly",sc:scoreHour(t,n.wind,[])});
-  if(a) cand.push({wind:a.prevail,alts:a.alts,label:"KDEN TAF",sc:scoreHour(t,a.prevail,a.alts)});
+  if(a) cand.push({wind:a.prevail,alts:a.alts,label:TAFN(),sc:scoreHour(t,a.prevail,a.alts)});
   if(!cand.length) return null;
   const pick=cand.reduce((x,y)=>y.sc.score<x.sc.score?y:x);
   return {pick,other:cand.find(c=>c!==pick)};
@@ -1045,16 +1312,17 @@ function renderLegs(){
   const el=document.getElementById("legs"), w=flightWindow();
   if(!w){el.innerHTML="";return;}
   const short=x=>windText(x).split(" · ")[0];
-  el.innerHTML=[["Takeoff",w.dep],["Landing",w.ret]].map(([title,t])=>{
+  el.innerHTML=[["Takeoff",w.dep,"dep"],["Landing",w.ret,"arr"]].map(([title0,t,sd])=>withSide(sd,()=>{
+    const title=`${title0} <span class="aptcode">${APT.code}</span>`;
     const p=legPick(t), when=timeText(t).split(" local")[0];
-    if(!p) return `<div class="leghead"><b>${title} ${when}</b></div><p class="small">No forecast covers this time yet. NWS hourly goes about 7 days out; the KDEN TAF about 30 hours.</p>`;
+    if(!p) return `<div class="leghead"><b>${title} ${when}</b></div><p class="small">No forecast covers this time yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
     const k=p.pick;
     let h=`<div class="leghead"><b>${title} ${when}</b> <span class="small">· ${k.label}: ${short(k.wind)}${k.alts.length?" · "+k.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}</span></div>`;
     h+=`<div class="rwys">${cardsHTML(k.wind,t,k.alts,k.label+" wind").html}</div>`;
     if(p.other){const o=p.other; h+=`<div class="small" style="margin-top:6px">Other forecast, ${o.label}: ${short(o.wind)}${o.alts.length?" · "+o.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}. Best-runway score ${o.sc.score}${o.sc.q?"?":""}.</div>${chipsFor(o.wind,o.alts,t)}`;}
-    else h+=`<div class="small" style="margin-top:6px">${k.label==="NWS hourly"?"The KDEN TAF does not cover this time yet (each TAF covers about 30 h).":"NWS hourly is not loaded for this time."}</div>`;
+    else h+=`<div class="small" style="margin-top:6px">${k.label==="NWS hourly"?"The "+TAFN()+" does not cover this time yet (each TAF covers about 30 h).":"NWS hourly is not loaded for this time."}</div>`;
     return h;
-  }).join("");
+  })).join("");
 }
 function drawDiagram(w,res){
   const svg=document.getElementById("diagram");
@@ -1064,7 +1332,9 @@ function drawDiagram(w,res){
   // each half is drawn on its threshold side (RWY 08 starts at the west end), labelled at that end
   const half=(hdg,id)=>{const a=rad(hdg+180);const x=Math.sin(a)*58,y=-Math.cos(a)*58;
     return `<line x1="0" y1="0" x2="${x}" y2="${y}" stroke="${col(id)}" stroke-width="9"/><text x="${x*1.2}" y="${y*1.2+4}" text-anchor="middle" font-size="12" font-weight="700">${id}</text>`;};
-  s+=half(91,"08")+half(271,"26")+half(180,"17")+half(360,"35");
+  // parallel runways (17L/17R) share one line; their labels are joined
+  const seen=[]; RWYS.forEach(r=>{const o=seen.find(x=>Math.abs(((x.tru-r.tru)+540)%360-180)<4); if(o) o.ids.push(r.id); else seen.push({tru:r.tru,ids:[r.id]});});
+  seen.forEach(x=>{s+=half(x.tru,x.ids[0]).replace(/>[^<]*<\/text>$/,`>${x.ids.join("/")}</text>`);});
   s+=`<text x="-82" y="-74" font-size="10" fill="var(--muted)">↑N true</text>`;
   if(w && !w.vrb && (w.spd||0)>0){
     const a=rad(w.dir), x=Math.sin(a)*78, y=-Math.cos(a)*78, x2=Math.sin(a)*30, y2=-Math.cos(a)*30;
@@ -1077,14 +1347,14 @@ function renderView(){
   const v=state.view;
   const back=document.getElementById("backNow");
   if(v){
-    document.getElementById("viewTitle").textContent="Forecast: "+timeText(v.time);
+    document.getElementById("viewTitle").textContent=APT.code+" forecast: "+timeText(v.time);
     document.getElementById("windLine").textContent=`${v.label}: ${windText(v.wind)}`+(v.alts&&v.alts.length?` · also possible: `+v.alts.map(a=>a.kind+" "+windText(a.wind)).join("; "):"");
     back.style.display=""; renderCards(v.wind,v.time,v.alts,v.label+" wind");
   } else if(state.metar){
     const m=state.metar;
-    document.getElementById("viewTitle").textContent="Current conditions";
+    document.getElementById("viewTitle").textContent=APT.code+" current conditions";
     let extra="";
-    if(m.temp!=null && m.altim){const pa=5515+(29.92-m.altim)*1000;const isa=15-2*pa/1000;const da=Math.round((pa+120*(m.temp-isa))/100)*100;extra=` · density altitude ≈ ${da.toLocaleString()} ft`;}
+    if(m.temp!=null && m.altim){const pa=APT.elev+(29.92-m.altim)*1000;const isa=15-2*pa/1000;const da=Math.round((pa+120*(m.temp-isa))/100)*100;extra=` · density altitude ≈ ${da.toLocaleString()} ft`;}
     const age=m.time?Math.round((Date.now()-m.time)/60000):null;
     document.getElementById("windLine").innerHTML=`<div>${m.raw.replace(/</g,"&lt;")}</div><div class="small">Wind ${windText(m.wind)} · observed ${timeText(m.time)}${age!=null?(age>75?` <b class="err">(${age} min ago, old: check AWOS 119.025)</b>`:` (${age} min ago)`):""}${extra}</div>`;
     back.style.display="none"; renderCards(m.wind,m.time||new Date(),[],"current METAR wind, other items from this hour's forecast");
@@ -1127,13 +1397,29 @@ function renderTimeline(){
   tbl.querySelectorAll("td[data-sc]").forEach(td=>td.addEventListener("click",e=>{e.stopPropagation();state.scoreOpen=state.scoreOpen===td.dataset.sc?null:td.dataset.sc;renderTimeline();}));
   tbl.querySelectorAll("tr[data-i]").forEach(tr=>tr.addEventListener("click",()=>{state.view=rows[+tr.dataset.i];renderView();renderTimeline();window.scrollTo({top:document.getElementById("viewTitle").getBoundingClientRect().top+scrollY-10,behavior:"smooth"});}));
 }
-function renderAll(){renderView();renderTimeline();renderFlight();renderFlightScore();renderLegs();renderAware();}
+function renderAll(){if(sideBusy) return; renderView();renderTimeline();renderFlight();renderFlightScore();renderLegs();renderAware();}
 
 // ---------- controls ----------
 const statusEl=document.getElementById("status");
 function setStatus(parts){statusEl.innerHTML=parts.join(" · ");}
 async function refresh(){
   setStatus(["Loading…"]);
+  const sides=sameApt()?["dep"]:["dep","arr"], all=[];
+  saveSide(curSide); sideBusy=true;
+  try{
+    for(const sd of sides){ enterSide(sd); const parts=await refreshOne(); state.status=parts; saveSide(sd);
+      all.push(...(sides.length>1?parts.map(p=>p.startsWith("Updated")?null:p.includes(APT.code)?p:`<b>${APT.code}</b> ${p}`).filter(Boolean):parts)); }
+  } finally { sideBusy=false; enterSide(viewSide); }
+  if(sides.length>1) all.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false})+" local");
+  const upd="Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false});
+  document.getElementById("updTop").textContent=upd;
+  // anything that failed or is stale is repeated at the top, beside the scores it affects
+  const bad=all.filter(x=>x.includes('class="err"')), tw=document.getElementById("topWarn");
+  tw.innerHTML=bad.length?"⚠ "+bad.join(" · ")+` <span class="small">A ? after a score means it was worked out without this.</span>`:"";
+  tw.style.display=bad.length?"block":"none";
+  setStatus(all); renderApt(); renderAll();
+}
+async function refreshOne(){
   const parts=[];
   const [m,t,n,nb,al,sg,afd,mdl,wxr,thr]=await Promise.allSettled([fetchMETAR(),fetchTAF(),fetchNWSGrid(),fetchNearby(),fetchAlerts(),fetchSigmets(),fetchAFD(),fetchModel(),fetchWx(),fetchThermal()]);
   state.model=mdl.status==="fulfilled"?mdl.value:null;
@@ -1144,8 +1430,8 @@ async function refresh(){
   state.sigmets=sg.status==="fulfilled"?sg.value:null;
   state.afd=afd.status==="fulfilled"?afd.value:null;
   const extraFail=[["alerts",al],["SIGMETs",sg],["forecaster notes",afd]].filter(x=>x[1].status!=="fulfilled").map(x=>x[0]);
-  if(m.status==="fulfilled"){state.metar=m.value;parts.push("KCFO METAR ✓");} else parts.push(`<span class="err">KCFO METAR failed (${m.reason.message})</span>`);
-  if(t.status==="fulfilled"){state.taf=t.value;parts.push(`KDEN TAF ✓ (issued ${timeText(t.value.issue)})`);} else parts.push(`<span class="err">KDEN TAF failed (${t.reason.message})</span>`);
+  if(m.status==="fulfilled"){state.metar=m.value;parts.push(`${APT.metar} METAR ✓${APT.metarNote?" ("+APT.metarNote+")":""}`);} else parts.push(`<span class="err">${APT.metar||APT.code} METAR failed (${m.reason.message})</span>`);
+  if(t.status==="fulfilled"){state.taf=t.value;parts.push(`${TAFN()} ✓ (issued ${timeText(t.value.issue)})`);} else parts.push(`<span class="err">${TAFN()} failed (${t.reason.message})</span>`);
   if(n.status==="fulfilled"){state.nws=n.value;parts.push("NWS hourly ✓");} else parts.push(`<span class="err">NWS hourly failed (${n.reason.message})</span>`);
   parts.push(mdl.status==="fulfilled"?"Model winds aloft ✓":`<span class="err">Model winds aloft failed (${mdl.reason.message}); scores show ? and skip the wind-shear and turbulence estimates</span>`);
   parts.push(thr.status==="fulfilled"?"Thermal forecast ✓"+([...thr.value.values()].some(x=>x.est)?" (heating estimated from sunshine)":""):`<span class="err">Thermal forecast failed (${thr.reason.message}); thermal bumps are not in the score</span>`);
@@ -1155,13 +1441,7 @@ async function refresh(){
   if([m,t,n].some(x=>x.status!=="fulfilled")) parts.push("You can paste a METAR/TAF further down instead.");
   if(extraFail.length) parts.push(`<span class="err">Not loaded: ${extraFail.join(", ")}</span>`);
   parts.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false})+" local");
-  const upd="Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false});
-  document.getElementById("updTop").textContent=upd;
-  // anything that failed or is stale is repeated at the top, beside the scores it affects
-  const bad=parts.filter(x=>x.includes('class="err"')), tw=document.getElementById("topWarn");
-  tw.innerHTML=bad.length?"⚠ "+bad.join(" · ")+` <span class="small">A ? after a score means it was worked out without this.</span>`:"";
-  tw.style.display=bad.length?"block":"none";
-  setStatus(parts); renderAll();
+  return parts;
 }
 document.getElementById("refresh").addEventListener("click",refresh);
 document.getElementById("backNow").addEventListener("click",()=>{state.view=null;renderAll();});
@@ -1178,7 +1458,7 @@ document.getElementById("usePaste").addEventListener("click",()=>{
   }catch(ex){e.textContent=ex.message;}
 });
 window.KCFOapp={evaluate,parseMETAR,parseTAF,tafAt,tafCondAt,scoreHour,scoreText,flightScore,state,renderAll};
-renderAll();
+renderApt(); renderAc(); renderMins(); renderAll();
 refresh();
 setInterval(refresh,10*60*1000);
 </script>

@@ -43,16 +43,16 @@ jobs:
           failed=0
           for i in $(seq 1 "$LOOPS"); do
             echo "::group::Download $i of $LOOPS at $(date -u +%H:%MZ)"
-            rm -rf out wx.json
+            rm -rf out wx.json wx-us.json
             node scripts/fetch-wx.mjs || failed=$((failed+1))
             if [ -f wx.json ]; then
-              mkdir out && mv wx.json out/
+              mkdir out && mv wx.json out/ && { [ -f wx-us.json ] && mv wx-us.json out/ || true; }
               (
                 cd out
                 git init -q -b data
                 git config user.name "github-actions[bot]"
                 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                git add wx.json
+                git add wx.json $( [ -f wx-us.json ] && echo wx-us.json )
                 git commit -q -m "Aviation weather $(date -u +%Y-%m-%dT%H:%MZ)"
                 git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
               ) || failed=$((failed+1))

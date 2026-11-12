@@ -30,6 +30,9 @@ async function getJSON(url) {
 }
 
 const out = { fetched: new Date().toISOString(), gairmet: { ok: false }, pirep: { ok: false } };
+// wx-us.json: the same data for every US airport (all G-AIRMET outlines, all US pilot reports),
+// so the app can check any airport the pilot types in. Outlines rounded to 0.01° (about 0.6 nm).
+const us = { fetched: out.fetched, gairmet: { ok: false }, pirep: { ok: false } };
 
 try {
   // One request returns one snapshot. A G-AIRMET issue holds five: now and 3, 6, 9 and 12 hours
@@ -59,6 +62,14 @@ try {
   }
   const validTimes = [...new Set(all.map(g => g.validTime).filter(Boolean))].sort();
   out.gairmet = { ok: all.length === 0 || areas > 0, total: all.length, areas, validTimes, items };
+  const usItems = [];
+  for (const g of all) {
+    const ring = (g.coords || []).map(c => [Math.round(Number(c.lon) * 100) / 100, Math.round(Number(c.lat) * 100) / 100]).filter(p => p.every(Number.isFinite));
+    const isArea = String(g.geometryType || g.geom || "AREA").toUpperCase() === "AREA" && String(g.geom || "AREA").toUpperCase() !== "LINE";
+    if (ring.length < 3 || !isArea) continue;
+    usItems.push({ hazard: g.hazard, validTime: g.validTime, base: g.base, top: g.top, due_to: g.due_to, ring });
+  }
+  us.gairmet = { ...out.gairmet, items: usItems };
   if (all.length > 0 && areas === 0) out.gairmet.error = "no readable outlines: data format may have changed";
   // Snapshots that did not load are simply absent from validTimes, so the app shows "?" for
   // the hours they would have covered instead of treating them as clear.
@@ -79,6 +90,21 @@ try {
   }
   out.pirep = { ok: true, total: all.length, items };
 } catch (e) { out.pirep = { ok: false, error: String(e.message || e) }; }
+
+try {
+  // All US pilot reports from the last 3 hours (bounding box: lat 24-50, lon -125 to -66, plus Alaska/Hawaii not covered).
+  const all = await getJSON(`https://aviationweather.gov/api/data/pirep?bbox=24,-125,50,-66&age=3&format=json`);
+  if (!Array.isArray(all)) throw new Error("unexpected PIREP format");
+  const items = [];
+  for (const p of all) {
+    const lat = Number(p.lat), lon = Number(p.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    items.push({ lat, lon, obsTime: p.obsTime, fltLvl: p.fltLvl, acType: p.acType, tbInt1: p.tbInt1, tbInt2: p.tbInt2, rawOb: p.rawOb });
+  }
+  us.pirep = { ok: true, total: all.length, items };
+} catch (e) { us.pirep = { ok: false, error: String(e.message || e) }; }
+writeFileSync("wx-us.json", JSON.stringify(us));
+console.log(`US file: ${us.gairmet.items?.length ?? 0} G-AIRMET outlines, ${us.pirep.items?.length ?? 0} pilot reports`);
 
 writeFileSync("wx.json", JSON.stringify(out, null, 1));
 console.log(`G-AIRMET: ${JSON.stringify({ ...out.gairmet, items: out.gairmet.items?.length })}`);
