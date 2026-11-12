@@ -45,6 +45,9 @@ textarea{width:100%;min-height:80px;font:13px ui-monospace,Menlo,Consolas,monosp
 .rwy.green{border-color:var(--green);background:var(--green-bg)}
 .rwy.red{border-color:var(--red);background:var(--red-bg)}
 .rwy .name{font-size:24px;font-weight:700}
+.rwy .rsc{margin-top:8px}
+.rwy .rsc summary{cursor:pointer;font-weight:600}
+.rwy .rsc .scorebox{margin-top:6px}
 .rwy .tag{float:right;font-weight:700;font-size:12px;padding:2px 8px;border-radius:20px;color:#fff;background:var(--grey)}
 .rwy.green .tag{background:var(--green);color:#06210f}
 .rwy.red .tag{background:var(--red);color:#fff}
@@ -155,7 +158,7 @@ a{color:var(--accent)}
       <button id="srcNws">NWS hourly (KCFO point)</button>
     </div>
   </div>
-  <p class="small" id="fcNote">KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW. NWS hourly is the National Weather Service gridded forecast for the KCFO location, including gusts. Tap a row to see that hour in the runway cards. Rows inside your flight window have a blue bar on the left. <b>Cat.</b> is the flight category from the forecast ceiling (lowest broken or overcast cloud layer, in ft above ground) and visibility (in statute miles, SM): VFR = ceiling above 3,000 ft and visibility above 5 SM; MVFR = 1,000 to 3,000 ft or 3 to 5 SM; IFR = 500 to 999 ft or 1 to under 3 SM; LIFR = under 500 ft or under 1 SM. It uses the lower value of NWS hourly and the KDEN TAF; "?" means neither gives both. <b>Score</b> is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
+  <p class="small" id="fcNote">KCFO has no TAF. The nearest TAF is Denver International (KDEN), 6 nm NW. NWS hourly is the National Weather Service gridded forecast for the KCFO location, including gusts. Tap a row to see that hour in the runway cards. Rows inside your flight window have a blue bar on the left. <b>Cat.</b> is the flight category from the forecast ceiling (lowest broken or overcast cloud layer, in ft above ground) and visibility (in statute miles, SM): VFR = ceiling above 3,000 ft and visibility above 5 SM; MVFR = 1,000 to 3,000 ft or 3 to 5 SM; IFR = 500 to 999 ft or 1 to under 3 SM; LIFR = under 500 ft or under 1 SM. It uses the lower value of NWS hourly and the KDEN TAF; "?" means neither gives both. Each runway card above also shows its own score, for when the tower gives you a runway that is usable but not the best: same rules, with that runway's crosswind and tailwind. <b>Score</b> in this table is one number from 0 to 100 for the hour, assuming you use the best runway: tap it to read the reasons.</p>
   <div class="scroll"><table class="tl" id="timeline"></table></div>
   <div id="fcErr" class="err"></div>
 </div>
@@ -771,14 +774,17 @@ const llwsTickEl=document.getElementById("llwsTick");
 function llwsTick(){const v=+lsGet("kcfo.llwsTick","0"); return v&&Date.now()-v<LLWS_TICK_H*3600e3?v:0;}
 function vecDiff(a,b){const f=w=>[w.spd*Math.sin(rad(w.dir)),w.spd*Math.cos(rad(w.dir))], [x1,y1]=f(a),[x2,y2]=f(b); return Math.hypot(x1-x2,y1-y2);}
 const ftAgl=l=>l&&l.h!=null?Math.round((l.h-FIELD_M)*3.281/100)*100:null;
-function windPart(w,t,lim){
+// rwyId: score this runway (the tower may assign one that is usable but not the best).
+// Without it the best runway is assumed.
+function windPart(w,t,lim,rwyId){
   const P=[],C=[], res=evaluate(w,lim,t);
   const steady=w.spd||0, peak=Math.max(w.gst||0,steady), spread=peak-steady;
-  const ok=res.filter(x=>!x.red);
-  if(!ok.length) C.push([20,`every runway is over your crosswind (${lim.xw} kt) or tailwind (${lim.tw} kt) limit`]);
+  const ok=res.filter(x=>!x.red), forced=rwyId?res.find(x=>x.r.id===rwyId):null, which=forced?"this runway":"best runway";
+  if(forced&&forced.red){C.push([20,`RWY ${rwyId} is over your limit: ${forced.reasons.join("; ")}`]); P.best=rwyId;}
+  else if(!ok.length) C.push([20,`every runway is over your crosswind (${lim.xw} kt) or tailwind (${lim.tw} kt) limit`]);
   else{
     const greens=res.filter(x=>x.green);
-    const best=(greens.length?greens:ok).reduce((a,b)=>b.xwMax<a.xwMax?b:a);
+    const best=forced||(greens.length?greens:ok).reduce((a,b)=>b.xwMax<a.xwMax?b:a);
     const xw=Math.round(best.xwMax), tw=Math.round(best.twMax);
     const xp=xw<=5?0:xw<=10?2*(xw-5):Math.min(45,10+7*(xw-10));
     const tp=Math.min(12,2*tw);
@@ -787,8 +793,8 @@ function windPart(w,t,lim){
       // so count only the worse of the two instead of adding them.
       if(Math.max(xp,tp)) P.push([Math.max(xp,tp),`variable wind ${xw} kt on RWY ${best.r.id}: it could be all tailwind (−${tp}) or all crosswind (−${xp}), the worse one is counted`]);
     } else {
-      if(xp) P.push([xp,`crosswind ${xw} kt on RWY ${best.r.id} (best runway), your limit ${lim.xw} kt`]);
-      if(tp) P.push([tp,`tailwind ${tw} kt on RWY ${best.r.id} (best runway)`]);
+      if(xp) P.push([xp,`crosswind ${xw} kt on RWY ${best.r.id} (${which}), your limit ${lim.xw} kt`]);
+      if(tp) P.push([tp,`tailwind ${tw} kt on RWY ${best.r.id} (${which})`]);
     }
     P.best=best.r.id;
   }
@@ -817,11 +823,11 @@ function flightCat(t){
   const ctxt=ceils.length?`ceiling ${(Math.round(c/100)*100).toLocaleString()} ft above ground (${ceils[0][1]})`:`no ceiling (${[tafOK?"KDEN TAF":null,nwsOK?"NWS hourly":null].filter(Boolean).join(", ")})`;
   return {cat,cls:cat.toLowerCase(),why:`Flight category ${cat}: ${ctxt}, visibility ${v>=9.9?"10 or more":+v.toFixed(1)} SM (${viss[0][1]}).`};
 }
-function scoreHour(t,wind,alts){
+function scoreHour(t,wind,alts,rwyId){
   t=new Date(hourFloor(t)); const lim=limits(), P=[], C=[], miss=[];
   // wind: the prevailing group, or a TEMPO/PROB group if that one scores worse
-  let wp=windPart(wind,t,lim), tag="";
-  (alts||[]).forEach(a=>{const p=windPart(a.wind,t,lim); if(partValue(p)<partValue(wp)){wp=p;tag=` (TAF ${a.kind} group)`;}});
+  let wp=windPart(wind,t,lim,rwyId), tag="";
+  (alts||[]).forEach(a=>{const p=windPart(a.wind,t,lim,rwyId); if(partValue(p)<partValue(wp)){wp=p;tag=` (TAF ${a.kind} group)`;}});
   wp.P.forEach(x=>P.push([x[0],x[1]+tag])); wp.C.forEach(x=>C.push([x[0],x[1]+tag]));
   const n=nwsAt(t), tc=tafCondAt(state.taf,t), md=state.model&&state.model.get(+t);
   // ceiling and visibility: the lower of NWS hourly and KDEN TAF
@@ -968,9 +974,12 @@ function timeText(d){
   const loc=d.toLocaleString("en-US",{timeZone:TZ,weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false});
   return `${loc} local · ${String(d.getUTCDate()).padStart(2,"0")}${String(d.getUTCHours()).padStart(2,"0")}${String(d.getUTCMinutes()).padStart(2,"0")}Z`;
 }
-function renderCards(wind,t){
+function renderCards(wind,t,alts,label){
   const res=evaluate(wind,limits(),t);
   const html=res.map(x=>{
+    // Score for this runway: same rules as the hourly score, but with this runway instead of the best one.
+    const sc=scoreHour(t,wind,alts||[],x.r.id);
+    const scTxt=scoreText(sc,`RWY ${x.r.id}, ${timeText(t).split(" local")[0]} (${label})`);
     const hwLabel=x.head>=-0.05?"Headwind":"Tailwind";
     const tag=x.cls==="green"?"BEST":x.cls==="red"?"OVER LIMIT":"USABLE";
     let why;
@@ -993,7 +1002,8 @@ function renderCards(wind,t){
         <tr><td>Worst tailwind (gust/var)</td><td>${fmt(x.twMax)} kt</td></tr>
         <tr><td>T/O & landing distance vs calm</td><td>${dist}</td></tr>
       </table>
-      <div class="why">${why}</div></div>`;
+      <div class="why">${why}</div>
+      <details class="rsc"><summary>Score on this runway: <span class="chip sc ${sc.color}">${sc.score}${sc.q?"?":""}</span> <span class="small">reasons</span></summary><div class="scorebox">${scTxt}</div></details></div>`;
   }).join("");
   document.getElementById("rwys").innerHTML=html;
   drawDiagram(wind,res);
@@ -1021,7 +1031,7 @@ function renderView(){
   if(v){
     document.getElementById("viewTitle").textContent="Forecast: "+timeText(v.time);
     document.getElementById("windLine").textContent=`${v.label}: ${windText(v.wind)}`+(v.alts&&v.alts.length?` · also possible: `+v.alts.map(a=>a.kind+" "+windText(a.wind)).join("; "):"");
-    back.style.display=""; renderCards(v.wind,v.time);
+    back.style.display=""; renderCards(v.wind,v.time,v.alts,v.label+" wind");
   } else if(state.metar){
     const m=state.metar;
     document.getElementById("viewTitle").textContent="Current conditions";
@@ -1029,7 +1039,7 @@ function renderView(){
     if(m.temp!=null && m.altim){const pa=5515+(29.92-m.altim)*1000;const isa=15-2*pa/1000;const da=Math.round((pa+120*(m.temp-isa))/100)*100;extra=` · density altitude ≈ ${da.toLocaleString()} ft`;}
     const age=m.time?Math.round((Date.now()-m.time)/60000):null;
     document.getElementById("windLine").innerHTML=`<div>${m.raw.replace(/</g,"&lt;")}</div><div class="small">Wind ${windText(m.wind)} · observed ${timeText(m.time)}${age!=null?(age>75?` <b class="err">(${age} min ago, old: check AWOS 119.025)</b>`:` (${age} min ago)`):""}${extra}</div>`;
-    back.style.display="none"; renderCards(m.wind,m.time||new Date());
+    back.style.display="none"; renderCards(m.wind,m.time||new Date(),[],"current METAR wind, other items from this hour's forecast");
   } else {
     document.getElementById("windLine").textContent="No current observation loaded yet.";
     document.getElementById("rwys").innerHTML="";
@@ -1049,13 +1059,13 @@ function renderTimeline(){
     err.textContent="";
   }
   const lim=limits();
-  let h=`<tr><th>Time (local / Z)</th><th>Cat.</th><th>Wind (true)</th><th>Score</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
+  let h=`<tr><th>Time (local / Z)</th><th>Score</th><th>Cat.</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
   rows.forEach((row,i)=>{
     const sc=scoreHour(row.time,row.wind,row.alts), scKey=row.label+(+row.time);
     const res=evaluate(row.wind,lim,row.time), fc=flightCat(row.time);
     const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
     const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(inWindow(row.time,flightWindow())?" win":"");
-    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td>`+
+    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td>${windText(row.wind).split(" · ")[0]}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windText(a.wind).split(" · ")[0]}</span>`).join(""):""}</td>`+
       res.map((x,k)=>{
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
