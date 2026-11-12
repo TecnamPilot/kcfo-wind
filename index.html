@@ -191,11 +191,6 @@ a{color:var(--accent)}
       <select id="cert"><option value="">choose…</option><option value="student">Student pilot certificate</option><option value="sport">Sport pilot</option><option value="private">Private pilot</option><option value="commercial">Commercial pilot</option><option value="atp">Airline transport pilot</option></select>
       <label><input type="checkbox" id="ratIfr"> Instrument rating</label>
       <label><input type="checkbox" id="ratMe"> Multiengine rating</label></div>
-    <div class="row" id="trnRow"><b>Training for</b>
-      <label data-t="private"><input type="checkbox" class="trn" value="private"> Private</label>
-      <label data-t="commercial"><input type="checkbox" class="trn" value="commercial"> Commercial</label>
-      <label data-t="ifr"><input type="checkbox" class="trn" value="ifr"> Instrument</label>
-      <label data-t="me"><input type="checkbox" class="trn" value="me"> Multiengine</label></div>
   </div>
   <h3 id="minsSetTitle" style="margin:12px 0 6px;font-size:15px"></h3>
   <div id="suggest" class="small" style="margin-bottom:8px"></div>
@@ -230,7 +225,7 @@ a{color:var(--accent)}
       <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (<span id="rwTrue"></span>) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about <span id="mvTxt"></span>° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
       <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the runway colors test the full speed both as crosswind and as tailwind. The score counts only the worse of those two penalties, because the wind cannot be fully across and fully behind you at the same moment.</li>
-      <li><b>Red</b>: crosswind above your max crosswind (the default is a student's 8 kt; the POH demonstrated value is shown next to the setting), or tailwind above your max tailwind (default 6 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
+      <li><b>Red</b>: crosswind above your max crosswind (the default is a student's 7 kt; the POH demonstrated value is shown next to the setting), or tailwind above your max tailwind (default 6 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
       <li><b>KCFO only, calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
       <li><b>Grey</b>: within limits but not the best choice.</li>
@@ -329,10 +324,10 @@ function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 // Defaults are a student pilot's typical solo-endorsement values (Azat, 2026-11-12: start as C172 + student).
 // legal: the floor the score keeps no matter what is entered (FAA basic VFR in Class D: 1,000 ft, 3 SM).
 const MINS=[
-  {k:"xw",    id:"xwLim",  key:"kcfo.xw",         def:8,    lo:1},
+  {k:"xw",    id:"xwLim",  key:"kcfo.xw",         def:7,    lo:1},
   {k:"tw",    id:"twLim",  key:"kcfo.tw6",        def:3,    lo:0},
   {k:"wind",  id:"windLim",key:"kcfo.min.wind",   def:15,   lo:5},
-  {k:"gust",  id:"gustLim",key:"kcfo.min.gust",   def:20,   lo:5},
+  {k:"gust",  id:"gustLim",key:"kcfo.min.gust",   def:15,   lo:5},
   {k:"spread",id:"sprLim", key:"kcfo.min.spread", def:5,    lo:3},
   {k:"ceil",  id:"ceilLim",key:"kcfo.min.ceil",   def:3000, lo:1000},
   {k:"vis",   id:"visLim", key:"kcfo.min.vis",    def:5,    lo:3},
@@ -367,7 +362,7 @@ acSel.addEventListener("change",()=>{lsSet("kcfo.ac",acSel.value); renderAc(); r
 // Suggested starting points by certificate, in MINS order: xw, tw, wind, gust, spread, ceil, vis.
 // Not FAA numbers (the FAA asks each pilot to set their own); a starting point the pilot edits.
 const SUGGEST={
-  student:   {name:"student pilot",    v:[8,3,15,20,5,3000,5]},
+  student:   {name:"student pilot",    v:[7,3,15,15,5,3000,5]},
   sport:     {name:"sport pilot",      v:[10,3,15,20,8,3000,5]},
   private:   {name:"private pilot",    v:[12,5,20,25,10,3000,5]},
   commercial:{name:"commercial pilot", v:[15,6,25,25,15,3000,5]},
@@ -375,33 +370,35 @@ const SUGGEST={
 };
 // Two sets of minimums: solo (the original keys) and with an instructor aboard ("kcfo.cfi.*").
 // One set of minimums per pilot: the pilot in command's own (Azat, 2026-11-12: no separate instructor set).
-const certEl=document.getElementById("cert"), ifrEl=document.getElementById("ratIfr"), meEl=document.getElementById("ratMe"), trnEls=[...document.querySelectorAll(".trn")];
+const certEl=document.getElementById("cert"), ifrEl=document.getElementById("ratIfr"), meEl=document.getElementById("ratMe");
 certEl.value=lsGet("kcfo.cert",""); ifrEl.checked=lsGet("kcfo.ifr","0")==="1"; meEl.checked=lsGet("kcfo.me","0")==="1";
-const trnSaved=lsGet("kcfo.trn","").split(","); trnEls.forEach(e=>e.checked=trnSaved.includes(e.value));
-const RANK={student:0,sport:1,private:2,commercial:3,atp:4};
-function heldOrBelow(t){const r=RANK[certEl.value]; return t==="private"?r>=2:t==="commercial"?r>=3:t==="ifr"?ifrEl.checked:t==="me"?meEl.checked:false;}
-function training(){return trnEls.some(e=>e.checked&&!heldOrBelow(e.value));}
 function loadSet(){MINS.forEach(m=>m.el.value=lsGet(m.key,String(m.def)));}
 MINS.forEach(m=>m.el=document.getElementById(m.id)); loadSet();
 function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
-function minsChanged(){MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
+function minsChanged(e){if(e&&e.type==="input") undoMins=null; MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
 MINS.forEach(m=>m.el.addEventListener("input",minsChanged));
 document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=m.def); minsChanged();});
+// Choosing a certificate fills in that level's suggested numbers right away (the pilot asked for that level),
+// with Undo to get the previous numbers back.
+let undoMins=null;
+certEl.addEventListener("change",()=>{const sg=SUGGEST[certEl.value]; if(!sg) return;
+  const before=MINS.map(m=>m.el.value); if(MINS.every((m,i)=>+m.el.value===sg.v[i])) return;
+  undoMins=before; MINS.forEach((m,i)=>m.el.value=sg.v[i]); MINS.forEach(m=>lsSet(m.key,m.el.value));});
 function levelChanged(){lsSet("kcfo.cert",certEl.value); lsSet("kcfo.ifr",ifrEl.checked?"1":"0"); lsSet("kcfo.me",meEl.checked?"1":"0");
-  lsSet("kcfo.trn",trnEls.filter(e=>e.checked).map(e=>e.value).join(","));
   renderMins(); renderAll();}
-[certEl,ifrEl,meEl,...trnEls].forEach(e=>e.addEventListener("change",levelChanged));
+[certEl,ifrEl,meEl].forEach(e=>e.addEventListener("change",levelChanged));
 document.addEventListener("click",e=>{
+  if(e.target&&e.target.id==="undoMins"&&undoMins){MINS.forEach((m,i)=>m.el.value=undoMins[i]); undoMins=null; minsChanged(); return;}
   if(e.target&&e.target.id==="useSuggest"){const sg=SUGGEST[certEl.value]; if(sg){MINS.forEach((m,i)=>m.el.value=sg.v[i]); minsChanged();}}});
 function renderMins(){
-  const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def), tr=training();
-  // level rows: hide "training for" items already held; the solo / instructor switch only while training
-  document.querySelectorAll("#trnRow label[data-t]").forEach(l=>l.style.display=heldOrBelow(l.dataset.t)?"none":"");
+  const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def);
   document.getElementById("minsSetTitle").textContent="Your numbers";
   const sg=SUGGEST[certEl.value], u=["kt","kt","kt","kt","kt","ft","SM"], lbl=["crosswind","tailwind","wind","gust","spread","ceiling","visibility"];
   let sgt="";
   if(sg){const same=MINS.every((m,i)=>L[m.k]===sg.v[i]);
-    sgt=`Suggested starting point for ${sg.name}: ${sg.v.map((v,i)=>`${lbl[i]} ${n(v)} ${u[i]}`).join(", ")}. ${same?"These are in use.":`<button id="useSuggest">Use these</button>`}`;
+    const list=sg.v.map((v,i)=>`${lbl[i]} ${n(v)} ${u[i]}`).join(", ");
+    sgt=same?`<b>Using the ${sg.name} starting numbers</b>: ${list}.${undoMins?` <button id="undoMins">Undo</button> (back to your previous numbers)`:""}`
+            :`<b>These are your own numbers, not the ${sg.name} suggestion</b> (${list}). <button id="useSuggest">Use the suggestion</button>`;
     if(certEl.value==="student") sgt+=` <b>As a student, use the limits your instructor wrote in your solo endorsement</b> (FAR 61.87(n)); they replace these.`;
     if(certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
   document.getElementById("suggest").innerHTML=sgt;
