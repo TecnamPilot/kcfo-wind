@@ -62,6 +62,11 @@ h1{white-space:nowrap}
 .rwy td:last-child{text-align:right;font-weight:600}
 .why{font-size:13px;margin-top:6px}
 .small{font-size:12px;color:var(--muted)}
+b.mv{color:var(--accent)}
+.mins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 14px}
+.mins label{display:flex;flex-direction:column;gap:2px;font-weight:600;font-size:14px}
+.mins label>span{font-weight:400}
+#minsLine{margin-top:6px}
 .tl{width:100%;border-collapse:collapse;font-size:13px}
 .tl th,.tl td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
 .tl th:first-child,.tl td:first-child{text-align:left}
@@ -121,6 +126,7 @@ a{color:var(--accent)}
 
 <div class="card" id="flightCard">
   <div id="flightScore"></div>
+  <div id="minsLine" class="small"></div>
   <div class="small" style="margin-top:8px"><span class="legend"><span style="background:var(--green-bg);color:var(--green)">✓ Best</span><span style="background:var(--grey-bg);color:var(--grey)">Usable</span><span style="background:var(--red-bg);color:var(--red)">✕ Over limit</span></span>The number beside each runway is its score. Tap a box for details.</div>
   <div id="legs"></div>
   <label class="small" id="llwsBox" style="display:none;margin-top:10px"><input type="checkbox" id="llwsTick"> I looked at the <a href="https://aviationweather.gov/gfa/#gairmet" target="_blank" rel="noopener">G-AIRMET map</a> and it shows low-level wind shear (LLWS) over KCFO. <span id="llwsNote"></span> <span class="small">(Shown because the app could not read a fresh G-AIRMET itself.)</span></label>
@@ -161,13 +167,21 @@ a{color:var(--accent)}
   <div id="aware"></div>
 </div>
 
-<div class="card">
-  <h2>Your limits and data status</h2>
-  <div class="row">
-    <label>Max crosswind <input type="number" id="xwLim" min="0" max="30" step="1"> kt <span class="small">(POH: 15)</span></label>
-    <label>Max tailwind <input type="number" id="twLim" min="0" max="20" step="1"> kt <span class="small">(personal; not in POH)</span></label>
+<div class="card" id="minsCard">
+  <h2 id="minsTitle">Your personal minimums</h2>
+  <p class="small" style="margin-top:0">Personal minimums are the limits you set for yourself, usually stricter than the law and the POH. The runway colors and the score use these numbers. They are saved only on this phone or computer; nothing is sent anywhere. A value exactly at your limit is still within it.</p>
+  <div class="mins">
+    <label>Max crosswind <span><input type="number" id="xwLim" min="1" max="30" step="1"> kt</span><span class="small">P2008 POH demonstrated: 15</span></label>
+    <label>Max tailwind <span><input type="number" id="twLim" min="0" max="20" step="1"> kt</span><span class="small">POH has no tailwind limit</span></label>
+    <label>Max wind <span><input type="number" id="windLim" min="5" max="40" step="1"> kt</span><span class="small">steady speed, any direction</span></label>
+    <label>Max gust <span><input type="number" id="gustLim" min="5" max="50" step="1"> kt</span><span class="small">highest gust speed</span></label>
+    <label>Max gust spread <span><input type="number" id="sprLim" min="3" max="30" step="1"> kt</span><span class="small">gust minus steady wind</span></label>
+    <label>Min ceiling <span><input type="number" id="ceilLim" min="1000" max="10000" step="500"> ft</span><span class="small">above ground; legal floor 1,000</span></label>
+    <label>Min visibility <span><input type="number" id="visLim" min="3" max="10" step="1"> SM</span><span class="small">legal floor 3</span></label>
   </div>
-  <div id="status" class="small" style="margin-top:8px"></div>
+  <div class="row" style="margin-top:8px"><button id="minsReset">Reset to defaults</button><span id="minsWarn" class="small"></span></div>
+  <h2 style="margin-top:14px">Data status</h2>
+  <div id="status" class="small"></div>
 </div>
 
 <div class="card">
@@ -186,7 +200,7 @@ a{color:var(--accent)}
       <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (08 = 091°, 26 = 271°, 17 = 180°, 35 = 360°) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about 8° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
       <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the runway colors test the full speed both as crosswind and as tailwind. The score counts only the worse of those two penalties, because the wind cannot be fully across and fully behind you at the same moment.</li>
-      <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your personal max tailwind (default 6 kt). A value exactly at the limit is not red.</li>
+      <li><b>Red</b>: crosswind above your max crosswind (default = POH 15 kt), or tailwind above your max tailwind (default 6 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
       <li><b>Calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
       <li><b>Grey</b>: within limits but not the best choice.</li>
@@ -200,12 +214,13 @@ a{color:var(--accent)}
     <summary>How the score is decided</summary>
     <p>The score starts at <b>100</b>. Each factor that is less than ideal takes points off. Then <b>caps</b> apply: a cap is a ceiling the score cannot rise above, used for no-go items. The score is the lower of the two. Colors follow the cockpit convention: <b>green 80–100</b> normal, <b>amber 40–79</b> caution (read the reasons), <b>red 0–39</b> a limit is exceeded or a hazard is forecast. A <b>?</b> after the number means a source did not load, so something was not checked. The flight score is the <b>worst hour</b> between departure and return, not the average.</p>
     <ul>
-      <li><b>Crosswind on the best runway</b> (gust value): free up to 5 kt, 2 points per kt from 6 to 10 kt, 7 per kt from 11 to 15 kt (15 kt = 55 at best). Every runway over a limit: cap 20.</li>
-      <li><b>Tailwind on the best runway</b>: 2 per kt, up to 12.</li>
-      <li><b>Gust spread</b> (gust minus steady wind): free up to 4 kt, then 3 per kt, up to 30. Spread 15 kt or more, or peak gust 25 kt or more: cap 35.</li>
-      <li><b>Steady wind</b>: 1 per kt from 13 to 20 kt, 15 points from 21 to 25 kt, over 25 kt: cap 35.</li>
-      <li><b>Ceiling</b> (above ground): 4,000–4,999 ft 10 points, 3,000–3,999 ft 20, under 3,000 ft cap 35, under 1,000 ft cap 10.</li>
-      <li><b>Visibility</b>: 5–6.9 SM 15 points, under 5 SM cap 35, under 3 SM cap 10.</li>
+      <li>Numbers in <b>blue</b> below are <a href="#minsCard">your personal minimums</a>; they change when you change them.</li>
+      <li><b>Crosswind on the best runway</b> (gust value), compared with your max crosswind of <b class="mv" id="dXw"></b> kt: free up to a third of it, then a growing penalty, so a crosswind right at your limit scores <b>55</b> at best and half of it about 95. With a 15 kt limit: free up to 5 kt, 2 points per kt from 6 to 10 kt, 7 per kt from 11 to 15 kt. Every runway over your crosswind or tailwind limit: cap 20.</li>
+      <li><b>Tailwind on the best runway</b>: 2 per kt, up to 12. Over your <b class="mv" id="dTw"></b> kt: that runway is red.</li>
+      <li><b>Gust spread</b> (gust minus steady wind): free up to 4 kt, then 3 per kt, up to 30. Spread over <b class="mv" id="dSpr"></b> kt, or peak gust over <b class="mv" id="dGust"></b> kt: cap 35.</li>
+      <li><b>Steady wind</b>: 1 per kt from 13 to 20 kt, 15 points from 21 kt up. Over <b class="mv" id="dWind"></b> kt: cap 35.</li>
+      <li><b>Ceiling</b> (above ground): under <b class="mv" id="dCeil1"></b> ft 20 points, under <b class="mv" id="dCeil2"></b> ft 10 points, under your <b class="mv" id="dCeil"></b> ft cap 35, under 1,000 ft cap 10 whatever you set.</li>
+      <li><b>Visibility</b>: under <b class="mv" id="dVis2"></b> SM 15 points, under your <b class="mv" id="dVis"></b> SM cap 35, under 3 SM cap 10 whatever you set.</li>
       <li><b>Thunderstorm</b> in the TAF or hourly forecast, or a convective SIGMET over KCFO: cap 10. A slight chance only: 15 points.</li>
       <li><b>Precipitation</b>: 20–49% chance 5 points, 50% or more 15. Freezing rain, freezing drizzle or ice pellets: cap 10. Snow: cap 30.</li>
       <li><b>Fog risk</b>: temperature within 2 °C of dew point with wind 5 kt or less around sunrise: 10 points.</li>
@@ -236,7 +251,7 @@ a{color:var(--accent)}
   </details>
 </div>
 
-<div class="banner"><b>Advisory only.</b> This tool does the wind arithmetic. The pilot in command makes the go/no-go decision, using the official briefing, ATIS/AWOS, NOTAMs and ATC. Limits used: POH demonstrated crosswind <b>15 kt</b> (P2008 TC Flight Manual §2.1.24 and §4.5). The POH has <b>no tailwind limit</b>; the tailwind number under "Your limits" is your personal setting.</div>
+<div class="banner"><b>Advisory only.</b> This tool does the wind arithmetic. The pilot in command makes the go/no-go decision, using the official briefing, ATIS/AWOS, NOTAMs and ATC. Limits used: POH demonstrated crosswind <b>15 kt</b> (P2008 TC Flight Manual §2.1.24 and §4.5). The POH has <b>no tailwind limit</b>; the tailwind number under "Your personal minimums" is your own setting.</div>
 
 <div class="sub">KCFO Runway Wind for the Tecnam P2008 (Rotax 914) · Colorado Air and Space Port · elev 5,515 ft · RWY 08/26 (8,002 ft) and 17/35 (8,000 ft), asphalt</div>
 
@@ -260,10 +275,36 @@ const TZ = "America/Denver";
 // ---------- settings ----------
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
-const xwInput=document.getElementById("xwLim"), twInput=document.getElementById("twLim");
-xwInput.value=lsGet("kcfo.xw","15"); twInput.value=lsGet("kcfo.tw6","6");
-function limits(){return {xw:Math.max(0,+xwInput.value||0), tw:Math.max(0,+twInput.value||0)}}
-[xwInput,twInput].forEach(el=>el.addEventListener("input",()=>{lsSet("kcfo.xw",xwInput.value);lsSet("kcfo.tw6",twInput.value);renderAll()}));
+// Personal minimums: each pilot's own numbers, saved in this browser only (no sign-up).
+// Defaults are Azat's values; they reproduce the score as it was before minimums could be changed.
+// legal: the floor the score keeps no matter what is entered (FAA basic VFR in Class D: 1,000 ft, 3 SM).
+const MINS=[
+  {k:"xw",    id:"xwLim",  key:"kcfo.xw",         def:15,   lo:1},
+  {k:"tw",    id:"twLim",  key:"kcfo.tw6",        def:6,    lo:0},
+  {k:"wind",  id:"windLim",key:"kcfo.min.wind",   def:25,   lo:5},
+  {k:"gust",  id:"gustLim",key:"kcfo.min.gust",   def:25,   lo:5},
+  {k:"spread",id:"sprLim", key:"kcfo.min.spread", def:15,   lo:3},
+  {k:"ceil",  id:"ceilLim",key:"kcfo.min.ceil",   def:3000, lo:1000},
+  {k:"vis",   id:"visLim", key:"kcfo.min.vis",    def:5,    lo:3},
+];
+const POH_XW=15;
+MINS.forEach(m=>{m.el=document.getElementById(m.id); m.el.value=lsGet(m.key,String(m.def));});
+function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
+function minsChanged(){MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
+MINS.forEach(m=>m.el.addEventListener("input",minsChanged));
+document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=m.def); minsChanged();});
+function renderMins(){
+  const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def);
+  document.getElementById("minsLine").innerHTML=`Scored with ${dflt?"the default":"your"} minimums: crosswind ${L.xw} kt, tailwind ${L.tw} kt, wind ${L.wind} kt, gust ${L.gust} kt, gust spread ${L.spread} kt, ceiling ${n(L.ceil)} ft, visibility ${L.vis} SM. <a href="#minsCard" id="minsGo">Change</a>`;
+  const warn=[];
+  if(L.xw>POH_XW) warn.push(`Your max crosswind is above the ${POH_XW} kt the P2008 POH demonstrated.`);
+  MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
+  document.getElementById("minsWarn").textContent=warn.join(" ");
+  const sp=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  sp("dXw",L.xw); sp("dTw",L.tw); sp("dTw2",L.tw); sp("dSpr",L.spread); sp("dGust",L.gust); sp("dWind",L.wind);
+  sp("dCeil",n(L.ceil)); sp("dCeil1",n(L.ceil+1000)); sp("dCeil2",n(L.ceil+2000)); sp("dVis",L.vis); sp("dVis2",L.vis+2);
+}
+document.addEventListener("click",e=>{if(e.target&&e.target.id==="minsGo"){e.preventDefault(); document.getElementById("minsCard").scrollIntoView({behavior:"smooth"});}});
 
 // ---------- wind math ----------
 const rad=d=>d*Math.PI/180;
@@ -795,7 +836,9 @@ function windPart(w,t,lim,rwyId){
     const greens=res.filter(x=>x.green);
     const best=forced||(greens.length?greens:ok).reduce((a,b)=>b.xwMax<a.xwMax?b:a);
     const xw=Math.round(best.xwMax), tw=Math.round(best.twMax);
-    const xp=xw<=5?0:xw<=10?2*(xw-5):Math.min(45,10+7*(xw-10));
+    // Penalty curve set for a 15 kt limit (15 kt = -45, i.e. 55 at best), stretched to the pilot's own
+    // crosswind limit, so a crosswind right at anyone's limit scores 55 and half the limit scores about 95.
+    const xs=xw*15/Math.max(1,lim.xw), xp=Math.round(xs<=5?0:xs<=10?2*(xs-5):Math.min(45,10+7*(xs-10)));
     const tp=Math.min(12,2*tw);
     if(w.vrb){
       // A variable wind cannot be a full crosswind and a full tailwind at the same moment,
@@ -808,9 +851,10 @@ function windPart(w,t,lim,rwyId){
     P.best=best.r.id;
   }
   if(spread>4) P.push([Math.min(30,3*(spread-4)),`gusts ${spread} kt above the steady wind`]);
-  if(spread>=15) C.push([35,`gust spread ${spread} kt (15 kt or more)`]);
-  if(peak>=25) C.push([35,`peak gust ${peak} kt (25 kt or more)`]);
-  if(steady>25) C.push([35,`steady wind ${steady} kt (over 25 kt)`]);
+  if(spread>lim.spread) C.push([35,`gust spread ${spread} kt, over your ${lim.spread} kt limit`]);
+  if(peak>lim.gust) C.push([35,`peak gust ${peak} kt, over your ${lim.gust} kt limit`]);
+  if(steady>lim.wind) C.push([35,`steady wind ${steady} kt, over your ${lim.wind} kt limit`]);
+  else if(steady>25) P.push([15,`steady wind ${steady} kt`]);
   else if(steady>20) P.push([15,`steady wind ${steady} kt`]);
   else if(steady>12) P.push([steady-12,`steady wind ${steady} kt`]);
   return {P,C,best:P.best};
@@ -843,11 +887,11 @@ function scoreHour(t,wind,alts,rwyId){
   if(!n&&!tc) miss.push("ceiling, visibility and weather type (neither NWS hourly nor the KDEN TAF covers this hour)");
   const ceils=[n&&n.ceilFt!=null?[n.ceilFt,"NWS hourly"]:null, tc&&tc.ceil!=null?[tc.ceil,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
   if(ceils.length){const [c,src]=ceils[0], txt=`ceiling ${(Math.round(c/100)*100).toLocaleString()} ft above ground (${src})`;
-    if(c<1000) C.push([10,txt+", under 1,000 ft"]); else if(c<3000) C.push([35,txt+", under your 3,000 ft minimum"]);
-    else if(c<4000) P.push([20,txt]); else if(c<5000) P.push([10,txt]);}
+    if(c<1000) C.push([10,txt+", under 1,000 ft (below basic VFR)"]); else if(c<lim.ceil) C.push([35,txt+`, under your ${lim.ceil.toLocaleString()} ft minimum`]);
+    else if(c<lim.ceil+1000) P.push([20,txt+", within 1,000 ft of your minimum"]); else if(c<lim.ceil+2000) P.push([10,txt+", within 2,000 ft of your minimum"]);}
   const viss=[n&&n.visSM!=null?[n.visSM,"NWS hourly"]:null, tc&&tc.vis!=null?[tc.vis,"KDEN TAF"]:null].filter(Boolean).sort((a,b)=>a[0]-b[0]);
   if(viss.length){const [v,src]=viss[0], txt=`visibility ${v<3?v.toFixed(1):Math.round(v)} SM (${src})`;
-    if(v<3) C.push([10,txt+", under 3 SM"]); else if(v<5) C.push([35,txt+", under your 5 SM minimum"]); else if(v<7) P.push([15,txt]);}
+    if(v<3) C.push([10,txt+", under 3 SM (below basic VFR)"]); else if(v<lim.vis) C.push([35,txt+`, under your ${lim.vis} SM minimum`]); else if(v<lim.vis+2) P.push([15,txt+", within 2 SM of your minimum"]);}
   // thunderstorm, freezing precipitation, snow
   const sigNow=(state.sigmets||[]).filter(s=>{const a=Date.parse(s.start||0),b=Date.parse(s.end||0); return (!b||b>=+t)&&(!a||a<=+t+3600e3);});
   const conv=sigNow.some(s=>/CONVECTIVE|\bTS\b|THUNDER/i.test((s.phenomenon||"")+" "+(s.hazard||"")+" "+(s.id||"")));
@@ -1178,7 +1222,7 @@ document.getElementById("usePaste").addEventListener("click",()=>{
   }catch(ex){e.textContent=ex.message;}
 });
 window.KCFOapp={evaluate,parseMETAR,parseTAF,tafAt,tafCondAt,scoreHour,scoreText,flightScore,state,renderAll};
-renderAll();
+renderMins(); renderAll();
 refresh();
 setInterval(refresh,10*60*1000);
 </script>
