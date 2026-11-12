@@ -225,7 +225,7 @@ a{color:var(--accent)}
       <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (<span id="rwTrue"></span>) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about <span id="mvTxt"></span>° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
       <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the runway colors test the full speed both as crosswind and as tailwind. The score counts only the worse of those two penalties, because the wind cannot be fully across and fully behind you at the same moment.</li>
-      <li><b>Red</b>: crosswind above your max crosswind (the default is a student's 8 kt; the POH demonstrated value is shown next to the setting), or tailwind above your max tailwind (default 6 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
+      <li><b>Red</b>: crosswind above your max crosswind (the default is a student's 7 kt; the POH demonstrated value is shown next to the setting), or tailwind above your max tailwind (default 6 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
       <li><b>KCFO only, calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
       <li><b>Grey</b>: within limits but not the best choice.</li>
@@ -324,10 +324,10 @@ function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 // Defaults are a student pilot's typical solo-endorsement values (Azat, 2026-11-12: start as C172 + student).
 // legal: the floor the score keeps no matter what is entered (FAA basic VFR in Class D: 1,000 ft, 3 SM).
 const MINS=[
-  {k:"xw",    id:"xwLim",  key:"kcfo.xw",         def:8,    lo:1},
+  {k:"xw",    id:"xwLim",  key:"kcfo.xw",         def:7,    lo:1},
   {k:"tw",    id:"twLim",  key:"kcfo.tw6",        def:3,    lo:0},
   {k:"wind",  id:"windLim",key:"kcfo.min.wind",   def:15,   lo:5},
-  {k:"gust",  id:"gustLim",key:"kcfo.min.gust",   def:20,   lo:5},
+  {k:"gust",  id:"gustLim",key:"kcfo.min.gust",   def:15,   lo:5},
   {k:"spread",id:"sprLim", key:"kcfo.min.spread", def:5,    lo:3},
   {k:"ceil",  id:"ceilLim",key:"kcfo.min.ceil",   def:3000, lo:1000},
   {k:"vis",   id:"visLim", key:"kcfo.min.vis",    def:5,    lo:3},
@@ -362,7 +362,7 @@ acSel.addEventListener("change",()=>{lsSet("kcfo.ac",acSel.value); renderAc(); r
 // Suggested starting points by certificate, in MINS order: xw, tw, wind, gust, spread, ceil, vis.
 // Not FAA numbers (the FAA asks each pilot to set their own); a starting point the pilot edits.
 const SUGGEST={
-  student:   {name:"student pilot",    v:[8,3,15,20,5,3000,5]},
+  student:   {name:"student pilot",    v:[7,3,15,15,5,3000,5]},
   sport:     {name:"sport pilot",      v:[10,3,15,20,8,3000,5]},
   private:   {name:"private pilot",    v:[12,5,20,25,10,3000,5]},
   commercial:{name:"commercial pilot", v:[15,6,25,25,15,3000,5]},
