@@ -191,11 +191,6 @@ a{color:var(--accent)}
       <select id="cert"><option value="">choose…</option><option value="student">Student pilot certificate</option><option value="sport">Sport pilot</option><option value="private">Private pilot</option><option value="commercial">Commercial pilot</option><option value="atp">Airline transport pilot</option></select>
       <label><input type="checkbox" id="ratIfr"> Instrument rating</label>
       <label><input type="checkbox" id="ratMe"> Multiengine rating</label></div>
-    <div class="row" id="trnRow"><b>Training for</b>
-      <label data-t="private"><input type="checkbox" class="trn" value="private"> Private</label>
-      <label data-t="commercial"><input type="checkbox" class="trn" value="commercial"> Commercial</label>
-      <label data-t="ifr"><input type="checkbox" class="trn" value="ifr"> Instrument</label>
-      <label data-t="me"><input type="checkbox" class="trn" value="me"> Multiengine</label></div>
   </div>
   <h3 id="minsSetTitle" style="margin:12px 0 6px;font-size:15px"></h3>
   <div id="suggest" class="small" style="margin-bottom:8px"></div>
@@ -375,12 +370,8 @@ const SUGGEST={
 };
 // Two sets of minimums: solo (the original keys) and with an instructor aboard ("kcfo.cfi.*").
 // One set of minimums per pilot: the pilot in command's own (Azat, 2026-11-12: no separate instructor set).
-const certEl=document.getElementById("cert"), ifrEl=document.getElementById("ratIfr"), meEl=document.getElementById("ratMe"), trnEls=[...document.querySelectorAll(".trn")];
+const certEl=document.getElementById("cert"), ifrEl=document.getElementById("ratIfr"), meEl=document.getElementById("ratMe");
 certEl.value=lsGet("kcfo.cert",""); ifrEl.checked=lsGet("kcfo.ifr","0")==="1"; meEl.checked=lsGet("kcfo.me","0")==="1";
-const trnSaved=lsGet("kcfo.trn","").split(","); trnEls.forEach(e=>e.checked=trnSaved.includes(e.value));
-const RANK={student:0,sport:1,private:2,commercial:3,atp:4};
-function heldOrBelow(t){const r=RANK[certEl.value]; return t==="private"?r>=2:t==="commercial"?r>=3:t==="ifr"?ifrEl.checked:t==="me"?meEl.checked:false;}
-function training(){return trnEls.some(e=>e.checked&&!heldOrBelow(e.value));}
 function loadSet(){MINS.forEach(m=>m.el.value=lsGet(m.key,String(m.def)));}
 MINS.forEach(m=>m.el=document.getElementById(m.id)); loadSet();
 function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
@@ -388,15 +379,12 @@ function minsChanged(){MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); r
 MINS.forEach(m=>m.el.addEventListener("input",minsChanged));
 document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=m.def); minsChanged();});
 function levelChanged(){lsSet("kcfo.cert",certEl.value); lsSet("kcfo.ifr",ifrEl.checked?"1":"0"); lsSet("kcfo.me",meEl.checked?"1":"0");
-  lsSet("kcfo.trn",trnEls.filter(e=>e.checked).map(e=>e.value).join(","));
   renderMins(); renderAll();}
-[certEl,ifrEl,meEl,...trnEls].forEach(e=>e.addEventListener("change",levelChanged));
+[certEl,ifrEl,meEl].forEach(e=>e.addEventListener("change",levelChanged));
 document.addEventListener("click",e=>{
   if(e.target&&e.target.id==="useSuggest"){const sg=SUGGEST[certEl.value]; if(sg){MINS.forEach((m,i)=>m.el.value=sg.v[i]); minsChanged();}}});
 function renderMins(){
-  const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def), tr=training();
-  // level rows: hide "training for" items already held; the solo / instructor switch only while training
-  document.querySelectorAll("#trnRow label[data-t]").forEach(l=>l.style.display=heldOrBelow(l.dataset.t)?"none":"");
+  const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def);
   document.getElementById("minsSetTitle").textContent="Your numbers";
   const sg=SUGGEST[certEl.value], u=["kt","kt","kt","kt","kt","ft","SM"], lbl=["crosswind","tailwind","wind","gust","spread","ceiling","visibility"];
   let sgt="";
