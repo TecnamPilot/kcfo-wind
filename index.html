@@ -184,7 +184,6 @@ a{color:var(--accent)}
       <label data-t="commercial"><input type="checkbox" class="trn" value="commercial"> Commercial</label>
       <label data-t="ifr"><input type="checkbox" class="trn" value="ifr"> Instrument</label>
       <label data-t="me"><input type="checkbox" class="trn" value="me"> Multiengine</label></div>
-    <div class="row seg" id="modeRow"><b>This flight</b><button data-m="solo">Solo</button><button data-m="cfi">With instructor</button></div>
   </div>
   <h3 id="minsSetTitle" style="margin:12px 0 6px;font-size:15px"></h3>
   <div id="suggest" class="small" style="margin-bottom:8px"></div>
@@ -341,47 +340,40 @@ const SUGGEST={
   private:   {name:"private pilot",    v:[12,5,20,25,10,3000,5]},
   commercial:{name:"commercial pilot", v:[15,6,25,25,15,3000,5]},
   atp:       {name:"airline transport pilot", v:[15,6,25,25,15,3000,5]},
-  cfi:       {name:"flights with an instructor aboard", v:[15,10,25,30,15,2000,3]},
 };
 // Two sets of minimums: solo (the original keys) and with an instructor aboard ("kcfo.cfi.*").
-const setKey=(m,mode)=>mode==="cfi"?"kcfo.cfi."+m.k:m.key;
-const setDef=(m,mode)=>mode==="cfi"?SUGGEST.cfi.v[MINS.indexOf(m)]:m.def;
+// One set of minimums per pilot: the pilot in command's own (Azat, 2026-11-12: no separate instructor set).
 const certEl=document.getElementById("cert"), ifrEl=document.getElementById("ratIfr"), meEl=document.getElementById("ratMe"), trnEls=[...document.querySelectorAll(".trn")];
 certEl.value=lsGet("kcfo.cert",""); ifrEl.checked=lsGet("kcfo.ifr","0")==="1"; meEl.checked=lsGet("kcfo.me","0")==="1";
 const trnSaved=lsGet("kcfo.trn","").split(","); trnEls.forEach(e=>e.checked=trnSaved.includes(e.value));
 const RANK={student:0,sport:1,private:2,commercial:3,atp:4};
 function heldOrBelow(t){const r=RANK[certEl.value]; return t==="private"?r>=2:t==="commercial"?r>=3:t==="ifr"?ifrEl.checked:t==="me"?meEl.checked:false;}
 function training(){return trnEls.some(e=>e.checked&&!heldOrBelow(e.value));}
-let mode=lsGet("kcfo.mode","solo"); if(mode!=="cfi"||!training()) mode="solo";
-function loadSet(){MINS.forEach(m=>m.el.value=lsGet(setKey(m,mode),String(setDef(m,mode))));}
+function loadSet(){MINS.forEach(m=>m.el.value=lsGet(m.key,String(m.def)));}
 MINS.forEach(m=>m.el=document.getElementById(m.id)); loadSet();
-function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):setDef(m,mode);}); return o;}
-function minsChanged(){MINS.forEach(m=>lsSet(setKey(m,mode),m.el.value)); renderMins(); renderAll();}
+function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
+function minsChanged(){MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
 MINS.forEach(m=>m.el.addEventListener("input",minsChanged));
-document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=setDef(m,mode)); minsChanged();});
-function setMode(m){mode=m; lsSet("kcfo.mode",m); loadSet(); renderMins(); renderAll();}
+document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=m.def); minsChanged();});
 function levelChanged(){lsSet("kcfo.cert",certEl.value); lsSet("kcfo.ifr",ifrEl.checked?"1":"0"); lsSet("kcfo.me",meEl.checked?"1":"0");
   lsSet("kcfo.trn",trnEls.filter(e=>e.checked).map(e=>e.value).join(","));
-  if(mode==="cfi"&&!training()) setMode("solo"); else {renderMins(); renderAll();}}
+  renderMins(); renderAll();}
 [certEl,ifrEl,meEl,...trnEls].forEach(e=>e.addEventListener("change",levelChanged));
-document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-m]"); if(b){e.preventDefault(); setMode(b.dataset.m);}
-  if(e.target&&e.target.id==="useSuggest"){const sg=SUGGEST[mode==="cfi"?"cfi":certEl.value]; if(sg){MINS.forEach((m,i)=>m.el.value=sg.v[i]); minsChanged();}}});
+document.addEventListener("click",e=>{
+  if(e.target&&e.target.id==="useSuggest"){const sg=SUGGEST[certEl.value]; if(sg){MINS.forEach((m,i)=>m.el.value=sg.v[i]); minsChanged();}}});
 function renderMins(){
-  const L=limits(), n=v=>v.toLocaleString(), dflt=mode==="solo"&&MINS.every(m=>L[m.k]===m.def), tr=training();
+  const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def), tr=training();
   // level rows: hide "training for" items already held; the solo / instructor switch only while training
   document.querySelectorAll("#trnRow label[data-t]").forEach(l=>l.style.display=heldOrBelow(l.dataset.t)?"none":"");
-  document.getElementById("modeRow").style.display=tr?"":"none";
-  document.querySelectorAll("[data-m]").forEach(b=>b.classList.toggle("on",b.dataset.m===mode));
-  document.getElementById("minsSetTitle").textContent=mode==="cfi"?"Minimums with an instructor aboard":tr?"Minimums for solo flights":"Your numbers";
-  const sg=SUGGEST[mode==="cfi"?"cfi":certEl.value], u=["kt","kt","kt","kt","kt","ft","SM"], lbl=["crosswind","tailwind","wind","gust","spread","ceiling","visibility"];
+  document.getElementById("minsSetTitle").textContent="Your numbers";
+  const sg=SUGGEST[certEl.value], u=["kt","kt","kt","kt","kt","ft","SM"], lbl=["crosswind","tailwind","wind","gust","spread","ceiling","visibility"];
   let sgt="";
   if(sg){const same=MINS.every((m,i)=>L[m.k]===sg.v[i]);
     sgt=`Suggested starting point for ${sg.name}: ${sg.v.map((v,i)=>`${lbl[i]} ${n(v)} ${u[i]}`).join(", ")}. ${same?"These are in use.":`<button id="useSuggest">Use these</button>`}`;
-    if(mode==="solo"&&certEl.value==="student") sgt+=` <b>As a student, use the limits your instructor wrote in your solo endorsement</b> (FAR 61.87(n)); they replace these.`;
-    if(mode==="solo"&&certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
+    if(certEl.value==="student") sgt+=` <b>As a student, use the limits your instructor wrote in your solo endorsement</b> (FAR 61.87(n)); they replace these.`;
+    if(certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
   document.getElementById("suggest").innerHTML=sgt;
-  const pill=tr?` <span class="seg">${["solo","cfi"].map(m=>`<button data-m="${m}" class="${m===mode?"on":""}" style="padding:2px 8px;font-size:12px">${m==="solo"?"Solo":"With instructor"}</button>`).join(" ")}</span>`:"";
-  document.getElementById("minsLine").innerHTML=`${tr?"Minimums for":dflt?"Default minimums":"Your minimums"}${pill}: crosswind ${L.xw}, tailwind ${L.tw}, wind ${L.wind}, gust ${L.gust}, spread ${L.spread} kt · ceiling ${n(L.ceil)} ft · visibility ${L.vis} SM. <a href="#minsCard" id="minsGo">Change</a>`;
+  document.getElementById("minsLine").innerHTML=`${dflt?"Default minimums":"Your minimums"}: crosswind ${L.xw}, tailwind ${L.tw}, wind ${L.wind}, gust ${L.gust}, spread ${L.spread} kt · ceiling ${n(L.ceil)} ft · visibility ${L.vis} SM. <a href="#minsCard" id="minsGo">Change</a>`;
   const warn=[];
   if(L.xw>AC().xw) warn.push(`Your max crosswind is above the ${AC().xw} kt the ${AC().name} POH demonstrated.`);
   MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
