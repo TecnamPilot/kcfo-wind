@@ -171,7 +171,7 @@ a{color:var(--accent)}
 </div>
 
 <div class="card" id="minsCard">
-  <h2 id="minsTitle">Your personal minimums</h2>
+  <details id="minsDet"><summary id="minsTitle">Your personal minimums (tap to change)</summary>
   <p class="small" style="margin-top:0">Personal minimums are the limits you set for yourself, usually stricter than the law and the POH. The runway colors and the score use these numbers. They are saved only on this phone or computer; nothing is sent anywhere. A value exactly at your limit is still within it.</p>
   <div class="lvl">
     <div class="row"><b>I hold</b>
@@ -197,6 +197,7 @@ a{color:var(--accent)}
     <label>Min visibility <span><input type="number" id="visLim" min="3" max="10" step="1"> SM</span><span class="small">legal floor 3</span></label>
   </div>
   <div class="row" style="margin-top:8px"><button id="minsReset">Reset to defaults</button><span id="minsWarn" class="small"></span></div>
+  </details>
   <h2 style="margin-top:14px">Data status</h2>
   <div id="status" class="small"></div>
 </div>
@@ -353,7 +354,7 @@ function renderMins(){
     if(mode==="solo"&&certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
   document.getElementById("suggest").innerHTML=sgt;
   const pill=tr?` <span class="seg">${["solo","cfi"].map(m=>`<button data-m="${m}" class="${m===mode?"on":""}" style="padding:2px 8px;font-size:12px">${m==="solo"?"Solo":"With instructor"}</button>`).join(" ")}</span>`:"";
-  document.getElementById("minsLine").innerHTML=`Scored with ${mode==="cfi"?"your with-instructor":tr?"your solo":dflt?"the default":"your"} minimums${pill}: crosswind ${L.xw} kt, tailwind ${L.tw} kt, wind ${L.wind} kt, gust ${L.gust} kt, gust spread ${L.spread} kt, ceiling ${n(L.ceil)} ft, visibility ${L.vis} SM. <a href="#minsCard" id="minsGo">Change</a>`;
+  document.getElementById("minsLine").innerHTML=`${tr?"Minimums for":dflt?"Default minimums":"Your minimums"}${pill}: crosswind ${L.xw}, tailwind ${L.tw}, wind ${L.wind}, gust ${L.gust}, spread ${L.spread} kt · ceiling ${n(L.ceil)} ft · visibility ${L.vis} SM. <a href="#minsCard" id="minsGo">Change</a>`;
   const warn=[];
   if(L.xw>POH_XW) warn.push(`Your max crosswind is above the ${POH_XW} kt the P2008 POH demonstrated.`);
   MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
@@ -362,7 +363,7 @@ function renderMins(){
   sp("dXw",L.xw); sp("dTw",L.tw); sp("dTw2",L.tw); sp("dSpr",L.spread); sp("dGust",L.gust); sp("dWind",L.wind);
   sp("dCeil",n(L.ceil)); sp("dCeil1",n(L.ceil+1000)); sp("dCeil2",n(L.ceil+2000)); sp("dVis",L.vis); sp("dVis2",L.vis+2);
 }
-document.addEventListener("click",e=>{if(e.target&&e.target.id==="minsGo"){e.preventDefault(); document.getElementById("minsCard").scrollIntoView({behavior:"smooth"});}});
+document.addEventListener("click",e=>{if(e.target&&e.target.closest&&e.target.closest('a[href="#minsCard"]')){e.preventDefault(); document.getElementById("minsDet").open=true; document.getElementById("minsCard").scrollIntoView({behavior:"smooth"});}});
 
 // ---------- wind math ----------
 const rad=d=>d*Math.PI/180;
