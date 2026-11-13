@@ -74,6 +74,9 @@ h1{white-space:nowrap}
 .aptrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
 .aptrow{grid-auto-flow:column;grid-template-rows:auto auto auto auto;row-gap:4px;align-items:center;justify-items:start}
 .aptrow .legin{display:contents}
+.aptrow .legin:first-child>*{grid-column:1}.aptrow .legin+.legin>*{grid-column:2}
+.daterow{display:flex;gap:8px;align-items:stretch;margin:2px 0 8px}
+.daterow #share{flex:1;font-size:15px;line-height:1.2;padding:4px 8px}
 .aptrow .pair{display:flex;gap:6px;align-items:stretch}
 .aptrow .pair select{font-size:16px;padding:2px 2px;min-width:0}
 .aptrow .pair input.apt{width:3.4em}
@@ -152,19 +155,19 @@ a{color:var(--accent)}
 <main>
 <div class="row" style="justify-content:space-between">
   <h1>FlightScore</h1>
-  <div class="row"><span id="updTop" class="small" role="button" title="Tap to update the weather now"></span><button class="primary" id="share">Click here to share app with your friends</button></div>
+  <div class="row"><span id="updTop" class="small" role="button" title="Tap to update the weather now"></span></div>
 </div>
 <div id="minsLine"></div>
 <div class="aptrow">
   <div class="legin"><span class="lh">Takeoff</span>
     <span class="pair"><input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport"><select id="fTime" aria-label="Takeoff time"></select></span>
-    <span class="small" id="aptDepName"></span>
-    <input type="date" id="fDate" aria-label="Date"></div>
+    <span class="small" id="aptDepName"></span></div>
   <div class="legin"><span class="lh">Landing</span>
     <span class="pair"><input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Landing airport"><select id="fArr" aria-label="Landing time"></select></span>
     <span class="small" id="aptArrName"></span>
     <span class="small" id="fArrDay"></span></div>
 </div>
+<div class="daterow"><input type="date" id="fDate" aria-label="Date"><button class="primary" id="share">Click here to share app with your friends</button></div>
 <div id="aptMsg" class="small" style="margin:0 0 6px"></div>
 <div id="topWarn" class="err" style="display:none;margin:6px 0"></div>
 
