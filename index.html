@@ -79,6 +79,8 @@ b.mv{color:var(--accent)}
 .mins label>span{font-weight:400}
 #minsLine{margin:2px 0 8px;font-size:15px;font-weight:600}
 #minsLine a{font-weight:500;margin-left:6px}
+#minsLine .dflt{font-weight:500}
+#minsLine .dflt+a{margin-left:0}
 .lvl{display:flex;flex-direction:column;gap:8px;font-size:14px}
 .lvl label{font-weight:400}
 .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff;outline:0}
@@ -358,7 +360,7 @@ const AIRCRAFT={
 // used the app before (it saved the NWS grid address) keeps those exactly; a new phone starts as a C172 student.
 const LEGACY={"kcfo.xw":"15","kcfo.tw6":"6","kcfo.min.wind":"25","kcfo.min.gust":"25","kcfo.min.spread":"15","kcfo.min.ceil":"3000","kcfo.min.vis":"5"};
 if(lsGet("kcfo.v2",null)===null){
-  if(lsGet("kcfo.gridUrl",null)!==null){ for(const k in LEGACY) if(lsGet(k,null)===null) lsSet(k,LEGACY[k]); if(lsGet("kcfo.ac",null)===null) lsSet("kcfo.ac","p2008"); }
+  if(lsGet("kcfo.gridUrl",null)!==null){ lsSet("kcfo.touched","1"); for(const k in LEGACY) if(lsGet(k,null)===null) lsSet(k,LEGACY[k]); if(lsGet("kcfo.ac",null)===null) lsSet("kcfo.ac","p2008"); }
   else if(lsGet("kcfo.cert",null)===null) lsSet("kcfo.cert","student");
   lsSet("kcfo.v2","1");
 }
@@ -368,7 +370,7 @@ acSel.value=AIRCRAFT[lsGet("kcfo.ac","c172")]?lsGet("kcfo.ac","c172"):"c172";
 const AC=()=>AIRCRAFT[acSel.value];
 function renderAc(){const a=AC(), t=(id,v,h)=>{const e=document.getElementById(id); if(e) e[h?"innerHTML":"textContent"]=v;};
   t("acXwHint",`${a.name} POH demonstrated: ${a.xw}`); t("acDistTxt",a.distTxt,1); t("acBanXw",a.xw+" kt"); t("acBanSrc",a.src); t("acSub",a.name); t("acSrc",a.src);}
-acSel.addEventListener("change",()=>{lsSet("kcfo.ac",acSel.value); renderAc(); renderMins(); renderAll();});
+acSel.addEventListener("change",()=>{lsSet("kcfo.touched","1"); lsSet("kcfo.ac",acSel.value); renderAc(); renderMins(); renderAll();});
 // Level presets, in MINS order: xw, tw, wind, gust, spread, ceil, vis (Azat approved 2026-11-13).
 // Not FAA numbers (the FAA asks each pilot to set their own); a starting point the pilot edits.
 // Sources and reasoning: /mnt/project-files/kcfo-crosswind/minimums-research-all-levels.md
@@ -396,7 +398,7 @@ certEl.value=lsGet("kcfo.cert","");
 function loadSet(){MINS.forEach(m=>m.el.value=lsGet(m.key,String(m.def)));}
 MINS.forEach(m=>m.el=document.getElementById(m.id)); loadSet();
 function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
-function minsChanged(e){if(e&&e.type==="input") undoMins=null; MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
+function minsChanged(e){if(e) lsSet("kcfo.touched","1"); if(e&&e.type==="input") undoMins=null; MINS.forEach(m=>lsSet(m.key,m.el.value)); renderMins(); renderAll();}
 MINS.forEach(m=>m.el.addEventListener("input",minsChanged));
 document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(m=>m.el.value=m.def); minsChanged();});
 // Choosing a certificate fills in that level's suggested numbers right away (the pilot asked for that level),
@@ -405,7 +407,7 @@ let undoMins=null;
 certEl.addEventListener("change",()=>{const v=presetFor(certEl.value); if(!v) return;
   const before=MINS.map(m=>m.el.value); if(MINS.every((m,i)=>+m.el.value===v[i])) return;
   undoMins=before; MINS.forEach((m,i)=>m.el.value=v[i]); MINS.forEach(m=>lsSet(m.key,m.el.value));});
-function levelChanged(){lsSet("kcfo.cert",certEl.value); renderMins(); renderAll();}
+function levelChanged(){lsSet("kcfo.touched","1"); lsSet("kcfo.cert",certEl.value); renderMins(); renderAll();}
 certEl.addEventListener("change",levelChanged);
 // Changing the airplane while on a level's numbers refills them for the new airplane (its crosswind cap).
 let prevAc=acSel.value;
@@ -425,7 +427,10 @@ function renderMins(){
     if(!preset) sgt+=` <b>You changed some numbers, so they are your own.</b> <button id="useSuggest">Use the ${sg.short} numbers</button>`;}
   document.getElementById("suggest").innerHTML=sgt;
   // One glance line at the top: level (or "Own" after any edit) · crosswind · wind and gust · airplane.
-  document.getElementById("minsLine").innerHTML=`${preset?sg.short:"Own"} · XW${L.xw} · W${L.wind} G${L.gust} · ${AC().short}<a href="#minsCard" id="minsGo" title="Airplane, level and minimums">✎ Edit</a>`;
+  // A new phone that never changed anything says so in plain words (Azat, 2026-11-13).
+  if(lsGet("kcfo.touched",null)===null&&acSel.value==="c172"&&certEl.value==="student"&&preset){
+    document.getElementById("minsLine").innerHTML=`<span class="dflt">Default settings: student pilot on Cessna 172.</span> <a href="#minsCard" id="minsGo">✎&nbsp;Edit to put your plane and your minimums</a>`; }
+  else document.getElementById("minsLine").innerHTML=`${preset?sg.short:"Own"} · XW${L.xw} · W${L.wind} G${L.gust} · ${AC().short}<a href="#minsCard" id="minsGo" title="Airplane, level and minimums">✎ Edit</a>`;
   const warn=[];
   if(L.xw>AC().xw) warn.push(`Your max crosswind is above the ${AC().xw} kt the ${AC().name} POH demonstrated.`);
   MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
