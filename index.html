@@ -358,15 +358,44 @@ const MINS=[
 ];
 // Airplanes: POH numbers the app uses. xw = maximum demonstrated crosswind (kt); vapp = final approach
 // speed used for gust advice (KIAS); vfe / vfeTxt = flap limit; dist(tw,head) = takeoff/landing distance change.
+// Most numbers come from each airplane's Pilot's Operating Handbook (POH). xw:null = the handbook publishes no
+// demonstrated crosswind (J-3 Cub, Citabria); vfe:null = no flaps; vapp:null = no approach speed found;
+// no dist = no simple wind rule in the POH (it uses wind lines on the charts).
+const CES=n=>({distTxt:`<b>+10% for every 2 kt of tailwind</b> (charts go to 10 kt tailwind), <b>−10% for every 9 kt of headwind</b> (${n} POH §5 chart notes)`,
+  dist:(tw,hd)=>tw>0.5?{pct:Math.round(Math.round(tw)/2*10)}:{pct:-Math.round(Math.round(hd)/9*10)}});
+const CHARTS="the wind lines on your POH takeoff and landing charts (this handbook gives no simple percent rule)";
 const AIRCRAFT={
+  citabria:{name:"American Champion Citabria 7ECA", short:"7ECA", xw:null, vapp:null, vfe:null, src:"Citabria 7ECA: no handbook crosswind figure, no flaps", distTxt:CHARTS},
+  c23:{name:"Beechcraft C23 Sundowner / Musketeer", short:"C23", xw:17, vapp:68, vfe:96, src:"Beechcraft C23 Sundowner 180 Pilot's Operating Handbook (Speeds for Safe Operation, Airspeed Limitations)",
+    vfeTxt:"96 KCAS, the flap limit (VFE)", distTxt:CHARTS},
+  c150:{name:"Cessna 150M", short:"C150", xw:13, vapp:60, vfe:85, src:"Cessna 150M Pilot's Operating Handbook §2 (limits), §4 (speeds) and §5 (chart notes)",
+    vfeTxt:"85 KIAS, the flap limit (VFE)", ...CES("C150M")},
+  c152:{name:"Cessna 152", short:"C152", xw:12, vapp:60, vfe:85, src:"Cessna 152 Pilot's Operating Handbook §2 (limits), §4 (speeds) and §5 (chart notes)",
+    vfeTxt:"85 KIAS, the flap limit (VFE)", ...CES("C152")},
   c172:{name:"Cessna 172S", short:"C172S", xw:15, vapp:65, vfe:85, src:"Cessna 172S Pilot's Operating Handbook §2 (limits) and §5 (performance chart notes)",
-    vfeTxt:"85 KIAS, the flap limit (VFE) for flaps beyond 10° (110 KIAS with flaps 10°)",
-    distTxt:"<b>+10% for every 2 kt of tailwind</b> (charts go to 10 kt tailwind), <b>−10% for every 9 kt of headwind</b> (C172S POH §5 chart notes)",
-    dist:(tw,hd)=>tw>0.5?{pct:Math.round(Math.round(tw)/2*10)}:{pct:-Math.round(Math.round(hd)/9*10)}},
+    vfeTxt:"85 KIAS, the flap limit (VFE) for flaps beyond 10° (110 KIAS with flaps 10°)", ...CES("C172S")},
+  sr20:{name:"Cirrus SR20 (G6)", short:"SR20", xw:20, vapp:78, vfe:104, src:"Cirrus SR20 Pilot's Operating Handbook §2 and §4 (normal procedures)",
+    vfeTxt:"104 KIAS, the flap limit (VFE) with flaps 100% (119 KIAS with flaps 50%)", distTxt:CHARTS},
+  da20:{name:"Diamond DA20-C1", short:"DA20", xw:20, vapp:60, vfe:78, src:"Diamond DA20-C1 Airplane Flight Manual §2 (limits) and §4 (operating information)",
+    vfeTxt:"78 KIAS, the flap limit (VFE) with landing flaps (100 KIAS with takeoff flaps)", distTxt:CHARTS},
+  da40:{name:"Diamond DA40 (180 hp)", short:"DA40", xw:20, vapp:73, vfe:91, src:"Diamond DA40 Airplane Flight Manual §2.2 (airspeeds) and §5.3.10 (landing)",
+    vfeTxt:"91 KIAS, the flap limit (VFE) with landing flaps (108 KIAS with takeoff flaps)", distTxt:CHARTS},
+  aa5b:{name:"Grumman AA-5B Tiger", short:"AA-5B", xw:16, vapp:70, vfe:103, src:"Grumman AA-5B Tiger Pilot's Operating Handbook (limits and normal procedures)",
+    vfeTxt:"103 KIAS, the flap limit (VFE)", distTxt:CHARTS},
+  j3:{name:"Piper J-3 Cub", short:"J-3", xw:null, vapp:null, vfe:null, src:"Piper J-3 Cub: no handbook crosswind figure, no flaps", distTxt:CHARTS.replace("your POH takeoff and landing charts (this handbook gives no simple percent rule)","any takeoff and landing data you have for your Cub")},
+  pa28_161:{name:"Piper PA-28-161 Warrior III", short:"PA-28-161", xw:17, vapp:63, vfe:103, src:"Piper PA-28-161 Warrior III Pilot's Operating Handbook §2 (limits) and §4 (approach and landing)",
+    vfeTxt:"103 KIAS, the flap limit (VFE)", distTxt:CHARTS},
+  pa28_181:{name:"Piper PA-28-181 Archer", short:"PA-28-181", xw:17, vapp:66, vfe:102, src:"Piper PA-28-181 Archer Pilot's Operating Handbook §2 (limits) and §4 (approach and landing)",
+    vfeTxt:"102 KIAS, the flap limit (VFE)", distTxt:CHARTS},
+  pa38:{name:"Piper PA-38 Tomahawk", short:"PA-38", xw:15, vapp:65, vfe:89, src:"Piper PA-38-112 Tomahawk Pilot's Operating Handbook (limits and normal procedures)",
+    vfeTxt:"89 KIAS, the flap limit (VFE)", distTxt:CHARTS},
   p2008:{name:"Tecnam P2008 TC (Rotax 914)", short:"P2008", maxSpread:12, xw:15, vapp:65, vfe:71, src:"Tecnam P2008 TC Flight Manual (Rotax 914 UL), Ed.1 Rev.3, §2.1.24, §4.5, §4.6, §4.7",
     vfeTxt:"71 KIAS, the flap limit (VFE) in your current POH; the same limit applies with any flaps out, including flaps 15°",
     distTxt:"<b>+15 m (50 ft) per kt of tailwind</b>, <b>−5 m (16 ft) per kt of headwind</b> (P2008 TC Flight Manual §4.6 takeoff and §4.7 landing)",
     dist:(tw,hd)=>tw>0.5?{m:Math.round(tw)*15}:{m:-Math.round(hd)*5}},
+  rv12:{name:"Van's RV-12iS", short:"RV-12", xw:11, vapp:60, vfe:82, src:"Van's RV-12iS Pilot's Operating Handbook §2.3 (limits), §4.14 (landing), §5.5 (landing distance)",
+    vfeTxt:"82 KIAS, the flap limit (VFE)",
+    distTxt:"<b>−10% landing distance for every 15 kt of headwind</b> (RV-12iS POH §5.5); the handbook gives no tailwind or takeoff wind rule"},
 };
 // Before airplane choice existed, the app used fixed P2008 numbers and Azat's minimums. A phone that has
 // used the app before (it saved the NWS grid address) keeps those exactly; a new phone starts as a C172 student.
@@ -381,7 +410,7 @@ acSel.innerHTML=Object.entries(AIRCRAFT).map(([k,a])=>`<option value="${k}">${a.
 acSel.value=AIRCRAFT[lsGet("kcfo.ac","c172")]?lsGet("kcfo.ac","c172"):"c172";
 const AC=()=>AIRCRAFT[acSel.value];
 function renderAc(){const a=AC(), t=(id,v,h)=>{const e=document.getElementById(id); if(e) e[h?"innerHTML":"textContent"]=v;};
-  t("acXwHint",`${a.name} POH demonstrated: ${a.xw}`); t("acDistTxt",a.distTxt,1); t("acBanXw",a.xw+" kt"); t("acBanSrc",a.src); t("acSub",a.name); t("acSrc",a.src);}
+  t("acXwHint",a.xw?`${a.name} POH demonstrated: ${a.xw}`:`${a.name}: no demonstrated crosswind published`); t("acDistTxt",a.distTxt,1); t("acBanXw",a.xw?a.xw+" kt":"none published"); t("acBanSrc",a.src); t("acSub",a.name); t("acSrc",a.src);}
 acSel.addEventListener("change",()=>{lsSet("kcfo.touched","1"); lsSet("kcfo.ac",acSel.value); renderAc(); renderMins(); renderAll();});
 // Level presets, in MINS order: xw, tw, wind, gust, spread, ceil, vis (Azat approved 2026-11-13).
 // Not FAA numbers (the FAA asks each pilot to set their own); a starting point the pilot edits.
@@ -393,16 +422,16 @@ const SUGGEST={
     help:"Sport pilots train at least 20 hours, half a private pilot's 40, and light-sport airplanes are light, so gusts move them more. One small step above a student: crosswind 8 kt, tailwind 4, wind 16, gust 18, spread 6. The law allows 3 miles visibility, but that is a floor, so the app starts at 5 miles and 3,000 ft."},
   private:   {name:"private pilot", short:"Private", v:[10,5,18,22,8,3000,5],
     help:"The middle values flying clubs publish for private pilots who rent: crosswind 10 kt, about two thirds of a C172's 15 kt demonstrated, tailwind 5, wind 18, gust 22, spread 8. Ceiling 3,000 ft and 5 miles are the FAA's example for a 100-hour pilot."},
-  commercial:{name:"commercial pilot", short:"Commercial", v:[15,6,22,27,10,2500,4],
+  commercial:{name:"commercial pilot", short:"Commercial", full:1, v:[15,6,22,27,10,2500,4],
     help:"At least 250 hours. Clubs let commercial pilots use the airplane's full demonstrated crosswind, never more. Wind 22, gust 27, spread 10. The lower ceiling 2,500 ft and 4 miles move toward the FAA's example for a 300-hour instrument pilot (2,000 ft, 3 miles)."},
-  atp:       {name:"airline transport pilot", short:"ATP", v:[15,6,25,30,12,2000,3],
+  atp:       {name:"airline transport pilot", short:"ATP", full:1, v:[15,6,25,30,12,2000,3],
     help:"At least 1,500 hours, but in a small airplane the airplane sets the crosswind: its demonstrated value. Wind 25, gust 30 (the most any club allows), spread 12. Ceiling 2,000 ft and 3 miles follow the FAA's example for a 300-hour instrument pilot."},
 };
 // The filled numbers never exceed the airplane: crosswind is the lower of the level value and the airplane's
-// demonstrated crosswind; on the P2008 the gust spread is capped at 12 kt (above that the gust-corrected
+// demonstrated crosswind (Commercial and ATP take the full demonstrated value); on the P2008 the gust spread is capped at 12 kt (above that the gust-corrected
 // approach speed passes the flap limit). The score uses only the numbers, never the level.
 function presetFor(cert,acKey){const sg=SUGGEST[cert]; if(!sg) return null; const a=AIRCRAFT[acKey]||AC(), v=sg.v.slice();
-  v[0]=Math.min(v[0],a.xw); if(a.maxSpread) v[4]=Math.min(v[4],a.maxSpread); return v;}
+  if(a.xw) v[0]=sg.full?a.xw:Math.min(v[0],a.xw); if(a.maxSpread) v[4]=Math.min(v[4],a.maxSpread); return v;}
 // Two sets of minimums: solo (the original keys) and with an instructor aboard ("kcfo.cfi.*").
 // One set of minimums per pilot: the pilot in command's own (Azat, 2026-11-12: no separate instructor set).
 const certEl=document.getElementById("cert");
@@ -444,7 +473,7 @@ function renderMins(){
     document.getElementById("minsLine").innerHTML=`<span class="dflt">Default settings: student pilot on Cessna 172.</span> <a href="#minsCard" id="minsGo">✎&nbsp;Edit to put your plane and your minimums</a>`; }
   else document.getElementById("minsLine").innerHTML=`${preset?sg.short:"Own"} · XW${L.xw} · W${L.wind} G${L.gust} · ${AC().short}<a href="#minsCard" id="minsGo" title="Airplane, level and minimums">✎ Edit</a>`;
   const warn=[];
-  if(L.xw>AC().xw) warn.push(`Your max crosswind is above the ${AC().xw} kt the ${AC().name} POH demonstrated.`);
+  if(AC().xw&&L.xw>AC().xw) warn.push(`Your max crosswind is above the ${AC().xw} kt the ${AC().name} POH demonstrated.`);
   MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
   document.getElementById("minsWarn").textContent=warn.join(" ");
   const sp=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
@@ -492,7 +521,7 @@ function evaluate(w, lim, t){
     const reasons=[];
     if(xwMax>lim.xw+0.05) reasons.push(`crosswind up to ${fmt(xwMax)} kt is over ${lim.xw} kt`);
     if(twMax>lim.tw+0.05) reasons.push(`tailwind up to ${fmt(twMax)} kt is over your ${lim.tw} kt`);
-    const distDelta = AC().dist(twMax, Math.max(0,headMin));
+    const distDelta = AC().dist?AC().dist(twMax, Math.max(0,headMin)):null;
     return {r, head, xw:Math.abs(xw), side, headMin, xwMax, twMax, red:reasons.length>0, reasons, distDelta, calm};
   });
   const ok=res.filter(x=>!x.red);
@@ -1024,7 +1053,8 @@ function renderAware(){
   const gusty=(state.nws||[]).filter(r=>inWindow(r.time,w)&&r.wind.gst);
   if(gusty.length){const g=Math.max(...gusty.map(r=>r.wind.gst-r.wind.spd));
     const a=AC(), VAPP=a.vapp, VFE=a.vfe, add=g/2, vg=VAPP+add;
-    items.push(`${lvl(g>=10||vg>VFE?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${fmt(add)} kt, to a ${VAPP} KIAS final approach speed = ${fmt(vg)} KIAS. `+
+    if(!VAPP||!VFE){items.push(`${lvl(g>=10?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${fmt(add)} kt, to your normal final approach speed${VAPP?` (${VAPP} KIAS = ${fmt(vg)} KIAS)`:""}.`);}
+    else items.push(`${lvl(g>=10||vg>VFE?"warn":"info","Gusts")}: the gust is up to ${g} kt above the steady wind in your window. Common practice (FAA Airplane Flying Handbook) is to add half of that, ${fmt(add)} kt, to a ${VAPP} KIAS final approach speed = ${fmt(vg)} KIAS. `+
       (vg>VFE?`<b class="lvl-warn">That is above ${a.vfeTxt}.</b> From ${VAPP} KIAS you can add at most ${VFE-VAPP} kt. Decide your flap setting and speed for this wind before you go.`
              :`That stays at or below ${a.vfeTxt}.`));}
   // Alerts
@@ -1314,7 +1344,7 @@ function cardsHTML(wind,t,alts,label){
     else if(x.twMax>0.5) why=`Within limits but has up to ${fmt(x.twMax)} kt tailwind.`;
     else why="Within limits, less headwind than the best runway.";
     const dd=x.distDelta;
-    const sg=v=>(v>0?"+":"−")+Math.abs(v), dist=dd.pct!=null?(dd.pct===0?"no change":sg(dd.pct)+"%"):(dd.m===0?"no change":sg(dd.m)+" m ("+sg(Math.round(dd.m*3.281))+" ft)");
+    const sg=v=>(v>0?"+":"−")+Math.abs(v), dist=!dd?"see your POH charts":dd.pct!=null?(dd.pct===0?"no change":sg(dd.pct)+"%"):(dd.m===0?"no change":sg(dd.m)+" m ("+sg(Math.round(dd.m*3.281))+" ft)");
     const line=x.calm?"Calm":`${x.headMin>=0?"Head "+Math.round(x.headMin):"Tail "+Math.round(x.twMax)} · Cross ${Math.round(x.xwMax)} kt${x.side&&x.xwMax>=0.5?(x.side==="R"?" R":" L"):""}`;
     return `<details class="rwy ${x.cls}"><summary><div class="name${x.r.id.length>4?" long":""}">RWY ${x.r.id}<span class="chip sc ${sc.color}">${sc.score}${sc.q?"?":""}</span></div>
       <div class="line">${x.cls==="green"?"✓ ":x.cls==="red"?"✕ ":""}${line}</div></summary>
