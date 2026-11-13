@@ -77,7 +77,8 @@ b.mv{color:var(--accent)}
 .mins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 14px}
 .mins label{display:flex;flex-direction:column;gap:2px;font-weight:600;font-size:14px}
 .mins label>span{font-weight:400}
-#minsLine{margin-top:6px}
+#minsLine{margin:2px 0 8px;font-size:15px;font-weight:600}
+#minsLine a{font-weight:500;margin-left:6px}
 .lvl{display:flex;flex-direction:column;gap:8px;font-size:14px}
 .lvl label{font-weight:400}
 .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff;outline:0}
@@ -139,6 +140,7 @@ a{color:var(--accent)}
   <h1>FlightScore</h1>
   <div class="row"><span id="updTop" class="small"></span><button id="share">Share</button><button class="primary" id="refresh">Refresh</button></div>
 </div>
+<div id="minsLine"></div>
 <div class="aptrow">
   <div class="legin"><span class="lh">Takeoff</span>
     <input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport">
@@ -156,7 +158,6 @@ a{color:var(--accent)}
 
 <div class="card" id="flightCard">
   <div id="flightScore"></div>
-  <div id="minsLine" class="small"></div>
   <div class="small" style="margin-top:8px"><span class="legend"><span style="background:var(--green-bg);color:var(--green)">✓ Best</span><span style="background:var(--grey-bg);color:var(--grey)">Usable</span><span style="background:var(--red-bg);color:var(--red)">✕ Over limit</span></span>The number beside each runway is its score. Tap a box for details.</div>
   <div id="legs"></div>
   <label class="small" id="llwsBox" style="display:none;margin-top:10px"><input type="checkbox" id="llwsTick"> I looked at the <a href="https://aviationweather.gov/gfa/#gairmet" target="_blank" rel="noopener">G-AIRMET map</a> and it shows low-level wind shear (LLWS) over KCFO. <span id="llwsNote"></span> <span class="small">(Shown because the app could not read a fresh G-AIRMET itself.)</span></label>
@@ -235,7 +236,7 @@ a{color:var(--accent)}
       <li>For each runway the wind is split into a <b>headwind/tailwind component</b> (wind speed × cos of the angle between wind and runway) and a <b>crosswind component</b> (wind speed × sin of that angle). Runway headings used are <b>true</b> (<span id="rwTrue"></span>) because METAR and TAF winds are true. ATIS/AWOS voice winds are magnetic (about <span id="mvTxt"></span>° less here), so do not mix them with these numbers.</li>
       <li><b>Gusts:</b> crosswind and tailwind use the gust speed (worst case). Headwind credit uses the steady speed only.</li>
       <li><b>Variable wind</b> (VRB, or a range like 240V300): every direction in the range is tested and the worst one counts. For VRB the runway colors test the full speed both as crosswind and as tailwind. The score counts only the worse of those two penalties, because the wind cannot be fully across and fully behind you at the same moment.</li>
-      <li><b>Red</b>: crosswind above your max crosswind (the default is a student's 7 kt; the POH demonstrated value is shown next to the setting), or tailwind above your max tailwind (default 6 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
+      <li><b>Red</b>: crosswind above your max crosswind (the default is a student's 7 kt; the POH demonstrated value is shown next to the setting), or tailwind above your max tailwind (default 3 kt), set under <a href="#minsCard">Your personal minimums</a>. A value exactly at the limit is not red.</li>
       <li><b>Green</b>: among the non-red runways, the one with the most headwind. Runways within 1 kt of each other are all green. In calm wind (under 3 kt) every non-red runway is green.</li>
       <li><b>KCFO only, calm or variable wind, 07:00–19:00 local:</b> RWY 26 is green, because that is the runway KCFO tower uses then (unless 26 is over a limit). Outside those hours every runway within limits is green.</li>
       <li><b>Grey</b>: within limits but not the best choice.</li>
@@ -345,11 +346,11 @@ const MINS=[
 // Airplanes: POH numbers the app uses. xw = maximum demonstrated crosswind (kt); vapp = final approach
 // speed used for gust advice (KIAS); vfe / vfeTxt = flap limit; dist(tw,head) = takeoff/landing distance change.
 const AIRCRAFT={
-  c172:{name:"Cessna 172S", xw:15, vapp:65, vfe:85, src:"Cessna 172S Pilot's Operating Handbook §2 (limits) and §5 (performance chart notes)",
+  c172:{name:"Cessna 172S", short:"C172S", xw:15, vapp:65, vfe:85, src:"Cessna 172S Pilot's Operating Handbook §2 (limits) and §5 (performance chart notes)",
     vfeTxt:"85 KIAS, the flap limit (VFE) for flaps beyond 10° (110 KIAS with flaps 10°)",
     distTxt:"<b>+10% for every 2 kt of tailwind</b> (charts go to 10 kt tailwind), <b>−10% for every 9 kt of headwind</b> (C172S POH §5 chart notes)",
     dist:(tw,hd)=>tw>0.5?{pct:Math.round(Math.round(tw)/2*10)}:{pct:-Math.round(Math.round(hd)/9*10)}},
-  p2008:{name:"Tecnam P2008 TC (Rotax 914)", xw:15, vapp:65, vfe:71, src:"Tecnam P2008 TC Flight Manual (Rotax 914 UL), Ed.1 Rev.3, §2.1.24, §4.5, §4.6, §4.7",
+  p2008:{name:"Tecnam P2008 TC (Rotax 914)", short:"P2008", xw:15, vapp:65, vfe:71, src:"Tecnam P2008 TC Flight Manual (Rotax 914 UL), Ed.1 Rev.3, §2.1.24, §4.5, §4.6, §4.7",
     vfeTxt:"71 KIAS, the flap limit (VFE) in your current POH; the same limit applies with any flaps out, including flaps 15°",
     distTxt:"<b>+15 m (50 ft) per kt of tailwind</b>, <b>−5 m (16 ft) per kt of headwind</b> (P2008 TC Flight Manual §4.6 takeoff and §4.7 landing)",
     dist:(tw,hd)=>tw>0.5?{m:Math.round(tw)*15}:{m:-Math.round(hd)*5}},
@@ -372,11 +373,11 @@ acSel.addEventListener("change",()=>{lsSet("kcfo.ac",acSel.value); renderAc(); r
 // Suggested starting points by certificate, in MINS order: xw, tw, wind, gust, spread, ceil, vis.
 // Not FAA numbers (the FAA asks each pilot to set their own); a starting point the pilot edits.
 const SUGGEST={
-  student:   {name:"student pilot",    v:[7,3,15,15,5,3000,5]},
-  sport:     {name:"sport pilot",      v:[10,3,15,20,8,3000,5]},
-  private:   {name:"private pilot",    v:[12,5,20,25,10,3000,5]},
-  commercial:{name:"commercial pilot", v:[15,6,25,25,15,3000,5]},
-  atp:       {name:"airline transport pilot", v:[15,6,25,25,15,3000,5]},
+  student:   {name:"student pilot", short:"Student", v:[7,3,15,15,5,3000,5]},
+  sport:     {name:"sport pilot", short:"Sport", v:[10,3,15,20,8,3000,5]},
+  private:   {name:"private pilot", short:"Private", v:[12,5,20,25,10,3000,5]},
+  commercial:{name:"commercial pilot", short:"Commercial", v:[15,6,25,25,15,3000,5]},
+  atp:       {name:"airline transport pilot", short:"ATP", v:[15,6,25,25,15,3000,5]},
 };
 // Two sets of minimums: solo (the original keys) and with an instructor aboard ("kcfo.cfi.*").
 // One set of minimums per pilot: the pilot in command's own (Azat, 2026-11-12: no separate instructor set).
@@ -412,7 +413,10 @@ function renderMins(){
     if(certEl.value==="student") sgt+=` <b>As a student, use the limits your instructor wrote in your solo endorsement</b> (FAR 61.87(n)); they replace these.`;
     if(certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
   document.getElementById("suggest").innerHTML=sgt;
-  document.getElementById("minsLine").innerHTML=`${dflt?"Default minimums":"Your minimums"}: crosswind ${L.xw}, tailwind ${L.tw}, wind ${L.wind}, gust ${L.gust}, spread ${L.spread} kt · ceiling ${n(L.ceil)} ft · visibility ${L.vis} SM. <a href="#minsCard" id="minsGo">Change</a>`;
+  // One short line at the top: airplane · level. If any number differs from the level's preset it says
+  // "Own mins", so it never claims a preset that is not in use.
+  const preset=sg&&MINS.every((m,i)=>L[m.k]===sg.v[i]);
+  document.getElementById("minsLine").innerHTML=`${AC().short} · ${preset?sg.short:"Own mins"}<a href="#minsCard" id="minsGo" title="Airplane, level and minimums">✎ Edit</a>`;
   const warn=[];
   if(L.xw>AC().xw) warn.push(`Your max crosswind is above the ${AC().xw} kt the ${AC().name} POH demonstrated.`);
   MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
