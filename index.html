@@ -144,12 +144,12 @@ a{color:var(--accent)}
     <input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport">
     <span class="small" id="aptDepName"></span>
     <input type="date" id="fDate" aria-label="Date">
-    <input type="time" id="fTime" step="900" aria-label="Takeoff time"></div>
+    <select id="fTime" aria-label="Takeoff time"></select></div>
   <div class="legin"><span class="lh">Landing</span>
     <input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Landing airport">
     <span class="small" id="aptArrName"></span>
     <span class="small" id="fArrDay"></span>
-    <input type="time" id="fArr" step="900" aria-label="Landing time"></div>
+    <select id="fArr" aria-label="Landing time"></select></div>
 </div>
 <div id="aptMsg" class="small" style="margin:0 0 6px"></div>
 <div id="topWarn" class="err" style="display:none;margin:6px 0"></div>
@@ -882,7 +882,11 @@ function denverToDate(dateStr,timeStr){
 function denverDateStr(t){
   return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t));
 }
-const hm=d=>d.toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false});
+// Local times as pilots say them: "7 AM", "10:20 AM" (Zulu only in raw METAR/TAF text)
+const hm=d=>d.toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true}).replace(":00 "," ");
+const h12=h=>`${h%12||12} ${h<12?"AM":"PM"}`;
+// Range "7–9 AM", or "11 AM–1 PM" when it crosses noon/midnight
+const hmRange=(a,b)=>{const x=hm(a), y=hm(b), sx=x.slice(-2); return sx===y.slice(-2)?x.slice(0,-3)+"–"+y:x+"–"+y;};
 
 // ---------- sun position (NOAA approximation, good to ~1°) ----------
 function sunPos(date,lat=APT.lat,lon=APT.lon){
@@ -910,9 +914,12 @@ function sunEvents(dateStr){ // sunrise/sunset (upper limb, refraction) for a De
 // A landing time earlier than the takeoff time means the next day.
 const fDate=document.getElementById("fDate"), fTime=document.getElementById("fTime"), fArr=document.getElementById("fArr");
 (function initWindow(){
-  const savedT=lsGet("kcfo.ftime","07:00"), [h,m]=savedT.split(":").map(Number), dur=+lsGet("kcfo.fdur","2")||2;
-  const defArr=`${String(Math.floor((h*60+m+dur*60)/60)%24).padStart(2,"0")}:${String((m+dur*60)%60).padStart(2,"0")}`;
-  fTime.value=savedT; fArr.value=lsGet("kcfo.farr",defArr);
+  // Whole hours only: older saved times like 07:15 round down to 07:00
+  const opts=[...Array(24)].map((_,h)=>`<option value="${String(h).padStart(2,"0")}:00">${h12(h)}</option>`).join("");
+  fTime.innerHTML=opts; fArr.innerHTML=opts;
+  const toHr=v=>String(+String(v).split(":")[0]%24||0).padStart(2,"0")+":00";
+  const savedT=toHr(lsGet("kcfo.ftime","07:00")), h=+savedT.slice(0,2), dur=Math.round(+lsGet("kcfo.fdur","2")||2);
+  fTime.value=savedT; fArr.value=toHr(lsGet("kcfo.farr",String((h+dur)%24)));
   // default date: today if that departure time is still ahead, else tomorrow
   let d=denverDateStr(Date.now());
   if(+denverToDate(d,savedT)<Date.now()-30*60e3) d=denverDateStr(Date.now()+86400e3);
@@ -1240,7 +1247,7 @@ function renderFlightScore(){
 document.getElementById("share").addEventListener("click",async()=>{
   const url=location.origin+location.pathname, sc=state.shareScore;
   const day=sc?sc.w.dep.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"}):"";
-  const text=sc?`FlightScore ${sc.route} ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}, score ${sc.score} of 100 (${sc.color}). See the reasons and your own score here:`
+  const text=sc?`FlightScore ${sc.route} ${day} ${hmRange(sc.w.dep,sc.w.ret)}, score ${sc.score} of 100 (${sc.color}). See the reasons and your own score here:`
                :"FlightScore: a 0–100 score for your flight from runway wind and weather, with the reasons:";
   try{ if(navigator.share){await navigator.share({title:"FlightScore",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
   try{await navigator.clipboard.writeText(text+" "+url); alert("Link copied. Paste it in a message to a friend.");}
@@ -1265,8 +1272,7 @@ function windHTML(w){
 }
 function timeText(d){
   if(!d) return "";
-  const loc=d.toLocaleString("en-US",{timeZone:TZ,weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false});
-  return `${loc} local · ${String(d.getUTCDate()).padStart(2,"0")}${String(d.getUTCHours()).padStart(2,"0")}${String(d.getUTCMinutes()).padStart(2,"0")}Z`;
+  return d.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"})+" "+hm(d)+" local";
 }
 function cardsHTML(wind,t,alts,label){
   const res=evaluate(wind,limits(),t);
@@ -1387,7 +1393,7 @@ function renderTimeline(){
     err.textContent="";
   }
   const lim=limits();
-  let h=`<tr><th>Time (local / Z)</th><th>Score</th><th>Cat.</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
+  let h=`<tr><th>Time (local)</th><th>Score</th><th>Cat.</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
   const fw=flightWindow(), wIdx=rows.map((r,i)=>inWindow(r.time,fw)?i:-1).filter(i=>i>=0);
   const depH=fw&&APT.code===CTX.dep.apt.code?hourFloor(fw.dep):null, arrH=fw&&APT.code===CTX.arr.apt.code?hourFloor(fw.ret):null;
   rows.forEach((row,i)=>{
@@ -1396,7 +1402,7 @@ function renderTimeline(){
     const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
     const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(wIdx.includes(i)?" win":"")+(i===wIdx[0]?" winTop":"")+(i===wIdx[wIdx.length-1]?" winBot":"");
     const tag=[+row.time===depH?"Takeoff":"",+row.time===arrH?"Landing":""].filter(Boolean).join(" · ");
-    h+=`<tr data-i="${i}" class="${sel}"><td>${tag?`<span class="legtag">${tag}</span><br>`:""}${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td class="wind">${windHTML(row.wind)}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windHTML(a.wind)}</span>`).join(""):""}</td>`+
+    h+=`<tr data-i="${i}" class="${sel}"><td>${tag?`<span class="legtag">${tag}</span><br>`:""}${timeText(row.time).replace(" local","")}</td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td class="wind">${windHTML(row.wind)}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windHTML(a.wind)}</span>`).join(""):""}</td>`+
       res.map((x,k)=>{
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
@@ -1423,8 +1429,8 @@ async function refresh(){
     for(const sd of sides){ enterSide(sd); const parts=await refreshOne(); state.status=parts; saveSide(sd);
       all.push(...(sides.length>1?parts.map(p=>p.startsWith("Updated")?null:p.includes(APT.code)?p:`<b>${APT.code}</b> ${p}`).filter(Boolean):parts)); }
   } finally { sideBusy=false; enterSide(viewSide); }
-  if(sides.length>1) all.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false})+" local");
-  const upd="Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false});
+  if(sides.length>1) all.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true})+" local");
+  const upd="Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true});
   document.getElementById("updTop").textContent=upd;
   // anything that failed or is stale is repeated at the top, beside the scores it affects
   const bad=all.filter(x=>x.includes('class="err"')), tw=document.getElementById("topWarn");
@@ -1453,7 +1459,7 @@ async function refreshOne(){
   } else parts.push(`<span class="err">G-AIRMET and pilot reports not loaded (${wxr.reason.message}); check the map yourself</span>`);
   if([m,t,n].some(x=>x.status!=="fulfilled")) parts.push("You can paste a METAR/TAF further down instead.");
   if(extraFail.length) parts.push(`<span class="err">Not loaded: ${extraFail.join(", ")}</span>`);
-  parts.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false})+" local");
+  parts.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true})+" local");
   return parts;
 }
 document.getElementById("refresh").addEventListener("click",refresh);
