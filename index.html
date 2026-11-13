@@ -72,8 +72,12 @@ h1{white-space:nowrap}
 .small{font-size:12px;color:var(--muted)}
 .aptcode{font-size:1.15em;padding:0 6px;border-radius:5px;background:var(--blue-bg);color:var(--blue)}
 .aptrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
-.aptrow{grid-auto-flow:column;grid-template-rows:auto auto auto auto auto;row-gap:4px;align-items:center;justify-items:start}
+.aptrow{grid-auto-flow:column;grid-template-rows:auto auto auto auto;row-gap:4px;align-items:center;justify-items:start}
 .aptrow .legin{display:contents}
+.aptrow .pair{display:flex;gap:6px;align-items:stretch}
+.aptrow .pair select{font-size:16px;padding:2px 2px;min-width:0}
+.aptrow .pair input.apt{width:3.4em}
+.aptrow{min-width:0}.aptrow>*{min-width:0}
 #fArrDay{grid-row:4;align-self:center}
 .legsc{display:inline-flex;align-items:center;gap:6px;margin-right:16px}
 .legsc .small{font-size:14px;color:var(--ink)}
@@ -153,15 +157,13 @@ a{color:var(--accent)}
 <div id="minsLine"></div>
 <div class="aptrow">
   <div class="legin"><span class="lh">Takeoff</span>
-    <input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport">
+    <span class="pair"><input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport"><select id="fTime" aria-label="Takeoff time"></select></span>
     <span class="small" id="aptDepName"></span>
-    <input type="date" id="fDate" aria-label="Date">
-    <select id="fTime" aria-label="Takeoff time"></select></div>
+    <input type="date" id="fDate" aria-label="Date"></div>
   <div class="legin"><span class="lh">Landing</span>
-    <input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Landing airport">
+    <span class="pair"><input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Landing airport"><select id="fArr" aria-label="Landing time"></select></span>
     <span class="small" id="aptArrName"></span>
-    <span class="small" id="fArrDay"></span>
-    <select id="fArr" aria-label="Landing time"></select></div>
+    <span class="small" id="fArrDay"></span></div>
 </div>
 <div id="aptMsg" class="small" style="margin:0 0 6px"></div>
 <div id="topWarn" class="err" style="display:none;margin:6px 0"></div>
