@@ -9,6 +9,13 @@
 <meta name="apple-mobile-web-app-title" content="FlightScore">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="description" content="A 0–100 score for your takeoff and landing from runway wind and weather.">
+<meta property="og:title" content="FlightScore">
+<meta property="og:description" content="A 0–100 score for your takeoff and landing from runway wind and weather.">
+<meta property="og:image" content="https://tecnampilot.github.io/kcfo-wind/apple-touch-icon.png">
+<meta property="og:url" content="https://tecnampilot.github.io/kcfo-wind/">
 <style>
 :root{
   --bg:#f6f7f9;--card:#ffffff;--ink:#16191d;--muted:#5d6670;--line:#d9dee4;
@@ -65,8 +72,12 @@ h1{white-space:nowrap}
 .small{font-size:12px;color:var(--muted)}
 .aptcode{font-size:1.15em;padding:0 6px;border-radius:5px;background:var(--blue-bg);color:var(--blue)}
 .aptrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
-.aptrow{grid-auto-flow:column;grid-template-rows:auto auto auto auto auto;row-gap:4px;align-items:center;justify-items:start}
+.aptrow{grid-auto-flow:column;grid-template-rows:auto auto auto auto;row-gap:4px;align-items:center;justify-items:start}
 .aptrow .legin{display:contents}
+.aptrow .pair{display:flex;gap:6px;align-items:stretch}
+.aptrow .pair select{font-size:16px;padding:2px 2px;min-width:0}
+.aptrow .pair input.apt{width:3.4em}
+.aptrow{min-width:0}.aptrow>*{min-width:0}
 #fArrDay{grid-row:4;align-self:center}
 .legsc{display:inline-flex;align-items:center;gap:6px;margin-right:16px}
 .legsc .small{font-size:14px;color:var(--ink)}
@@ -141,20 +152,18 @@ a{color:var(--accent)}
 <main>
 <div class="row" style="justify-content:space-between">
   <h1>FlightScore</h1>
-  <div class="row"><span id="updTop" class="small" role="button" title="Tap to update the weather now"></span><button id="share">Share app with your friends</button></div>
+  <div class="row"><span id="updTop" class="small" role="button" title="Tap to update the weather now"></span><button class="primary" id="share">Click here to share app with your friends</button></div>
 </div>
 <div id="minsLine"></div>
 <div class="aptrow">
   <div class="legin"><span class="lh">Takeoff</span>
-    <input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport">
+    <span class="pair"><input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport"><select id="fTime" aria-label="Takeoff time"></select></span>
     <span class="small" id="aptDepName"></span>
-    <input type="date" id="fDate" aria-label="Date">
-    <select id="fTime" aria-label="Takeoff time"></select></div>
+    <input type="date" id="fDate" aria-label="Date"></div>
   <div class="legin"><span class="lh">Landing</span>
-    <input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Landing airport">
+    <span class="pair"><input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Landing airport"><select id="fArr" aria-label="Landing time"></select></span>
     <span class="small" id="aptArrName"></span>
-    <span class="small" id="fArrDay"></span>
-    <select id="fArr" aria-label="Landing time"></select></div>
+    <span class="small" id="fArrDay"></span></div>
 </div>
 <div id="aptMsg" class="small" style="margin:0 0 6px"></div>
 <div id="topWarn" class="err" style="display:none;margin:6px 0"></div>
@@ -970,15 +979,9 @@ function renderFlight(){
   const hours=[]; for(let t=hourFloor(w.dep);t<=+w.ret;t+=3600e3) hours.push(t);
   const winds=[];
   hours.forEach(t=>{const n=nwsAt(t); if(n)winds.push({src:"NWS",t,wind:n.wind}); const a=tafWindAt(t); if(a){winds.push({src:"TAF",t,wind:a.prevail}); a.alts.forEach(x=>winds.push({src:"TAF "+x.kind,t,wind:x.wind}));}});
-  if(winds.length){
-    const lim=limits();
-    const worst=RWYS.map((r,k)=>{let xw=0,tw=0,red=false,why=[];winds.forEach(x=>{const e=evaluate(x.wind,lim)[k];
-      if(e.xwMax>xw)xw=e.xwMax; if(e.twMax>tw)tw=e.twMax; if(e.red){red=true;why.push(`${hm(new Date(x.t))} ${x.src}`);}});return {r,xw,tw,red,why};});
-    h+=`<p class="small" style="margin:0 0 4px"><b>Worst case anywhere in your window</b> (${winds.length} forecast hours/groups checked, gusts and TEMPO included):</p><div class="chips">`+
-      worst.map(x=>`<span class="chip ${x.red?"red":"grey"}" title="${x.why.join(', ')}">RWY ${x.r.id}: X ${Math.round(x.xw)} · T ${Math.round(x.tw)}</span>`).join("")+`</div>`;
-    const allRed=worst.every(x=>x.red);
-    if(allRed) h+=`<p class="err"><b>Every runway goes over a limit at some point in your window.</b> Look at the hour-by-hour rows above to see whether it is only part of the window.</p>`;
-  } else h+=`<p class="small">No forecast covers this window yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
+  // The per-runway "worst case in your window" chips were removed (Azat, 2026-11-13): they repeated the
+  // runway boxes above. The hourly table frames the window for a bad middle hour.
+  if(winds.length){  } else h+=`<p class="small">No forecast covers this window yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
   out.innerHTML=h;
 }
 function lvl(kind,txt){return `<b class="lvl-${kind}">${txt}</b>`;}
@@ -1012,7 +1015,7 @@ function renderAware(){
     const sky=Math.max(...wx.map(r=>r.sky??0)), pop=Math.max(...wx.map(r=>r.pop??0));
     const t0=n0&&n0.temp!=null?`${Math.round(n0.temp)} °C / dew point ${Math.round(n0.dew)} °C at departure`:"";
     items.push(`${lvl(frost?"warn":"ok","Frost")}: ${t0}. ${frost?"Cold, humid morning: frost on the wing is likely after a clear night. Even thin frost cuts lift; remove all of it before takeoff.":"Frost unlikely from the forecast."}`);
-    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`NWS gridded forecast: lowest ceiling about ${(Math.round(Math.min(...ceil)/100)*100).toLocaleString()} ft above ground. `:"No usable ceiling value in the NWS gridded forecast for this window; for cloud bases use the ${TAFN()} (shown in the forecast section). "}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
+    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`NWS gridded forecast: lowest ceiling about ${(Math.round(Math.min(...ceil)/100)*100).toLocaleString()} ft above ground. `:"No usable ceiling value in the NWS gridded forecast for this window; for cloud bases use the "+TAFN()+" (shown in the forecast section). "}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
   }
   // Gust spread
   const gusty=(state.nws||[]).filter(r=>inWindow(r.time,w)&&r.wind.gst);
@@ -1250,17 +1253,13 @@ function renderFlightScore(){
   // hour. Hours in between and the route are not scored. A local flight is the same rule at one airport.
   const hrs=[...withSide("dep",()=>flightScore({dep:w.dep,ret:w.dep}).map(x=>({...x,leg:"Takeoff",apt:CTX.dep.apt.code,hmT:hm(x.sc.t)}))),
       ...withSide("arr",()=>flightScore({dep:w.ret,ret:w.ret}).map(x=>({...x,leg:"Landing",apt:CTX.arr.apt.code,hmT:hm(x.sc.t)})))];
-  if(!hrs.length){el.innerHTML=`<span class="small">Flight score: no forecast covers this window yet.</span>`;return;}
+  if(!hrs.length){state.legScores=[]; el.innerHTML="";return;}
   const worst=hrs.reduce((x,y)=>y.sc.score<x.sc.score?y:x), q=hrs.some(h=>h.sc.q);
   const route=sameApt()?CTX.dep.apt.code:`${CTX.dep.apt.code} → ${CTX.arr.apt.code}`;
   state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w, route};
-  // Only the two scores (Azat, 2026-11-13): the pilot reads takeoff and landing and decides. The lower one is
-  // still the flight score for the Share text. Tap a badge for its reasons.
-  let h=`<div class="chips">`+hrs.map((x,i)=>`<span class="legsc"><span class="small">${x.leg} ${x.hmT}</span><span class="chip sc ${x.sc.color}" data-leg="${i}" title="Tap for the reasons">${x.sc.score}${x.sc.q?"?":""}</span></span>`).join("")+`</div>`;
-  const op=hrs[state.flightOpen];
-  if(op) h+=`<div class="scorebox" style="margin-top:8px">${withSide(op.leg==="Takeoff"?"dep":"arr",()=>scoreText(op.sc,`${op.apt} ${op.hmT} (${op.src})`))}</div>`;
-  el.innerHTML=h;
-  el.querySelectorAll("[data-leg]").forEach(c=>c.addEventListener("click",()=>{const i=+c.dataset.leg; state.flightOpen=state.flightOpen===i?null:i; renderFlightScore();}));
+  // No separate score card (Azat, 2026-11-13): the best runway box at each airport already shows that hour's
+  // score (tap the box for reasons). The lower one is still the flight score for the Share text.
+  state.legScores=hrs; el.innerHTML="";
 }
 // Share: the phone's own share sheet (Messages, WhatsApp, ...) with the app link and the current flight score.
 // Only the plain app address is sent: no personal minimums, airplane or level.
@@ -1355,7 +1354,7 @@ function renderLegs(){
     const k=p.pick;
     let h=`<div class="leghead"><b>${title} ${when}</b> <span class="small">· ${k.label}: ${short(k.wind)}${k.alts.length?" · "+k.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}</span></div>`;
     h+=`<div class="rwys">${cardsHTML(k.wind,t,k.alts,k.label+" wind").html}</div>`;
-    if(p.other){const o=p.other; h+=`<div class="small" style="margin-top:6px">Other forecast, ${o.label}: ${short(o.wind)}${o.alts.length?" · "+o.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}. Best-runway score ${o.sc.score}${o.sc.q?"?":""}.</div>${chipsFor(o.wind,o.alts,t)}`;}
+    if(p.other){const o=p.other; h+=`<div class="small" style="margin-top:6px">Other forecast, ${o.label}: ${short(o.wind)}${o.alts.length?" · "+o.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}. Best-runway score ${o.sc.score}${o.sc.q?"?":""}.</div>`;}
     else h+=`<div class="small" style="margin-top:6px">${k.label==="NWS hourly"?"The "+TAFN()+" does not cover this time yet (each TAF covers about 30 h).":"NWS hourly is not loaded for this time."}</div>`;
     return h;
   })).join("");
