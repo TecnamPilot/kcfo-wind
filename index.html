@@ -1354,7 +1354,7 @@ function renderLegs(){
     const k=p.pick;
     let h=`<div class="leghead"><b>${title} ${when}</b> <span class="small">· ${k.label}: ${short(k.wind)}${k.alts.length?" · "+k.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}</span></div>`;
     h+=`<div class="rwys">${cardsHTML(k.wind,t,k.alts,k.label+" wind").html}</div>`;
-    if(p.other){const o=p.other; h+=`<div class="small" style="margin-top:6px">Other forecast, ${o.label}: ${short(o.wind)}${o.alts.length?" · "+o.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}. Best-runway score ${o.sc.score}${o.sc.q?"?":""}.</div>${chipsFor(o.wind,o.alts,t)}`;}
+    if(p.other){const o=p.other; h+=`<div class="small" style="margin-top:6px">Other forecast, ${o.label}: ${short(o.wind)}${o.alts.length?" · "+o.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}. Best-runway score ${o.sc.score}${o.sc.q?"?":""}.</div>`;}
     else h+=`<div class="small" style="margin-top:6px">${k.label==="NWS hourly"?"The "+TAFN()+" does not cover this time yet (each TAF covers about 30 h).":"NWS hourly is not loaded for this time."}</div>`;
     return h;
   })).join("");
