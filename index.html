@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KCFO Runway Wind</title>
+<title>FlightScore</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="KCFO Wind">
+<meta name="apple-mobile-web-app-title" content="FlightScore">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -65,8 +65,13 @@ h1{white-space:nowrap}
 .small{font-size:12px;color:var(--muted)}
 .aptcode{font-size:1.15em;padding:0 6px;border-radius:5px;background:var(--blue-bg);color:var(--blue)}
 .aptrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
-.aptrow label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.aptrow .small{text-transform:none;letter-spacing:0;font-weight:400}
+.aptrow{grid-auto-flow:column;grid-template-rows:auto auto auto auto auto;row-gap:4px;align-items:center;justify-items:start}
+.aptrow .legin{display:contents}
+#fArrDay{grid-row:4;align-self:center}
+.legsc{display:inline-flex;align-items:center;gap:6px;margin-right:16px}
+.legsc .small{font-size:14px;color:var(--ink)}
+.aptrow .lh{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.aptrow input[type=date],.aptrow input[type=time]{max-width:100%}
 input.apt{font-family:inherit;font-weight:700;font-size:22px;line-height:1.2;width:4.4em;padding:0 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);text-transform:uppercase}
 b.mv{color:var(--accent)}
 .mins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 14px}
@@ -108,7 +113,10 @@ details p,details li{font-size:14px}
 .legend span{display:inline-block;padding:2px 8px;border-radius:5px;margin-right:6px;font-size:12px;font-weight:600}
 svg text{fill:var(--ink)}
 select,input[type=date],input[type=time]{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
-.tl tr.win td:first-child{box-shadow:inset 4px 0 0 var(--accent)}
+/* Frame around the hours from takeoff to landing, so a bad hour in the middle stands out */
+.tl tr.win td{box-shadow:inset calc(var(--wl,0)*3px) 0 0 var(--accent),inset calc(var(--wr,0)*-3px) 0 0 var(--accent),inset 0 calc(var(--wt,0)*3px) 0 var(--accent),inset 0 calc(var(--wb,0)*-3px) 0 var(--accent)}
+.tl tr.win td:first-child{--wl:1}.tl tr.win td:last-child{--wr:1}.tl tr.winTop td{--wt:1}.tl tr.winBot td{--wb:1}
+.legtag{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em}
 .legs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
 .leg{border:1px solid var(--line);border-radius:8px;padding:10px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -128,12 +136,20 @@ a{color:var(--accent)}
 <body>
 <main>
 <div class="row" style="justify-content:space-between">
-  <h1>Runway Wind</h1>
+  <h1>FlightScore</h1>
   <div class="row"><span id="updTop" class="small"></span><button id="share">Share</button><button class="primary" id="refresh">Refresh</button></div>
 </div>
 <div class="aptrow">
-  <label><span>Takeoff</span><input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="small" id="aptDepName"></span></label>
-  <label><span>Landing</span><input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="small" id="aptArrName"></span></label>
+  <div class="legin"><span class="lh">Takeoff</span>
+    <input id="aptDep" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Takeoff airport">
+    <span class="small" id="aptDepName"></span>
+    <input type="date" id="fDate" aria-label="Date">
+    <select id="fTime" aria-label="Takeoff time"></select></div>
+  <div class="legin"><span class="lh">Landing</span>
+    <input id="aptArr" class="apt" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Landing airport">
+    <span class="small" id="aptArrName"></span>
+    <span class="small" id="fArrDay"></span>
+    <select id="fArr" aria-label="Landing time"></select></div>
 </div>
 <div id="aptMsg" class="small" style="margin:0 0 6px"></div>
 <div id="topWarn" class="err" style="display:none;margin:6px 0"></div>
@@ -147,14 +163,8 @@ a{color:var(--accent)}
 </div>
 
 <div class="card">
-  <h2 id="tblTitle">Hour by hour: change your flight time here</h2>
+  <h2 id="tblTitle">Hour by hour</h2>
   <div class="row seg" id="viewSel" style="margin-bottom:8px"></div>
-  <div class="row">
-    <label>Date <input type="date" id="fDate"></label>
-    <label>Depart <input type="time" id="fTime" step="900"> <span class="small">local</span></label>
-    <label>Back after <select id="fDur"><option value="1">1 h</option><option value="1.5">1.5 h</option><option value="2">2 h</option><option value="2.5">2.5 h</option><option value="3">3 h</option></select></label>
-    <span id="fRange" class="small"></span>
-  </div>
   <div class="row" style="margin:10px 0 6px">
     <button id="srcTaf" class="on">TAF</button>
     <button id="srcNws">NWS hourly (airport point)</button>
@@ -237,7 +247,7 @@ a{color:var(--accent)}
 <div class="card">
   <details>
     <summary>How the score is decided</summary>
-    <p>The score starts at <b>100</b>. Each factor that is less than ideal takes points off. Then <b>caps</b> apply: a cap is a ceiling the score cannot rise above, used for no-go items. The score is the lower of the two. Colors follow the cockpit convention: <b>green 80–100</b> normal, <b>amber 40–79</b> caution (read the reasons), <b>red 0–39</b> a limit is exceeded or a hazard is forecast. A <b>?</b> after the number means a source did not load, so something was not checked. The flight score is the <b>worst hour</b> between departure and return, not the average.</p>
+    <p>The score starts at <b>100</b>. Each factor that is less than ideal takes points off. Then <b>caps</b> apply: a cap is a ceiling the score cannot rise above, used for no-go items. The score is the lower of the two. Colors follow the cockpit convention: <b>green 80–100</b> normal, <b>amber 40–79</b> caution (read the reasons), <b>red 0–39</b> a limit is exceeded or a hazard is forecast. A <b>?</b> after the number means a source did not load, so something was not checked. The flight score is the <b>lower</b> of two numbers: the takeoff airport at your takeoff time and the landing airport at your landing time. Hours in between and the route are not scored.</p>
     <ul>
       <li>Numbers in <b>blue</b> below are <a href="#minsCard">your personal minimums</a>; they change when you change them.</li>
       <li><b>Crosswind on the best runway</b> (gust value), compared with your max crosswind of <b class="mv" id="dXw"></b> kt: free up to a third of it, then a growing penalty, so a crosswind right at your limit scores <b>55</b> at best and half of it about 95. With a 15 kt limit: free up to 5 kt, 2 points per kt from 6 to 10 kt, 7 per kt from 11 to 15 kt. Every runway over your crosswind or tailwind limit: cap 20.</li>
@@ -782,8 +792,8 @@ function renderApt(){
   const D=CTX.dep.apt, A=CTX.arr.apt;
   document.getElementById("aptDep").value=D.code; document.getElementById("aptArr").value=A.code;
   document.getElementById("aptDepName").textContent=D.name; document.getElementById("aptArrName").textContent=sameApt()?"same airport (local flight)":A.name;
-  document.title=(sameApt()?D.code:D.code+"→"+A.code)+" Runway Wind";
-  document.getElementById("tblTitle").innerHTML=`Hour by hour at <span class="aptcode">${a.code}</span>: change your flight time here`;
+  document.title="FlightScore "+(sameApt()?D.code:D.code+"→"+A.code);
+  document.getElementById("tblTitle").innerHTML=`Hour by hour at <span class="aptcode">${a.code}</span>`;
   const vs=document.getElementById("viewSel");
   vs.style.display=sameApt()?"none":"";
   vs.innerHTML=sameApt()?"":`<b>Show:</b> `+["dep","arr"].map(sd=>`<button data-side="${sd}" class="${viewSide===sd?"on":""}">${CTX[sd].apt.code} ${sd==="dep"?"takeoff":"landing"}</button>`).join("");
@@ -872,7 +882,11 @@ function denverToDate(dateStr,timeStr){
 function denverDateStr(t){
   return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t));
 }
-const hm=d=>d.toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false});
+// Local times as pilots say them: "7 AM", "10:20 AM" (Zulu only in raw METAR/TAF text)
+const hm=d=>d.toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true}).replace(":00 "," ");
+const h12=h=>`${h%12||12} ${h<12?"AM":"PM"}`;
+// Range "7–9 AM", or "11 AM–1 PM" when it crosses noon/midnight
+const hmRange=(a,b)=>{const x=hm(a), y=hm(b), sx=x.slice(-2); return sx===y.slice(-2)?x.slice(0,-3)+"–"+y:x+"–"+y;};
 
 // ---------- sun position (NOAA approximation, good to ~1°) ----------
 function sunPos(date,lat=APT.lat,lon=APT.lon){
@@ -896,20 +910,29 @@ function sunEvents(dateStr){ // sunrise/sunset (upper limb, refraction) for a De
 }
 
 // ---------- flight window ----------
-const fDate=document.getElementById("fDate"), fTime=document.getElementById("fTime"), fDur=document.getElementById("fDur");
+// Takeoff date and time (takeoff airport's local time) and landing time (landing airport's local time).
+// A landing time earlier than the takeoff time means the next day.
+const fDate=document.getElementById("fDate"), fTime=document.getElementById("fTime"), fArr=document.getElementById("fArr");
 (function initWindow(){
-  const savedT=lsGet("kcfo.ftime","07:00"), savedD=lsGet("kcfo.fdur","2");
-  fTime.value=savedT; fDur.value=savedD;
+  // Whole hours only: older saved times like 07:15 round down to 07:00
+  const opts=[...Array(24)].map((_,h)=>`<option value="${String(h).padStart(2,"0")}:00">${h12(h)}</option>`).join("");
+  fTime.innerHTML=opts; fArr.innerHTML=opts;
+  const toHr=v=>String(+String(v).split(":")[0]%24||0).padStart(2,"0")+":00";
+  const savedT=toHr(lsGet("kcfo.ftime","07:00")), h=+savedT.slice(0,2), dur=Math.round(+lsGet("kcfo.fdur","2")||2);
+  fTime.value=savedT; fArr.value=toHr(lsGet("kcfo.farr",String((h+dur)%24)));
   // default date: today if that departure time is still ahead, else tomorrow
   let d=denverDateStr(Date.now());
   if(+denverToDate(d,savedT)<Date.now()-30*60e3) d=denverDateStr(Date.now()+86400e3);
   fDate.value=d;
-  [fDate,fTime,fDur].forEach(el=>el.addEventListener("change",()=>{lsSet("kcfo.ftime",fTime.value);lsSet("kcfo.fdur",fDur.value);renderAll();}));
+  [fDate,fTime,fArr].forEach(el=>el.addEventListener("change",()=>{lsSet("kcfo.ftime",fTime.value);lsSet("kcfo.farr",fArr.value);renderAll();}));
 })();
 function flightWindow(){
   if(!fDate.value||!fTime.value) return null;
-  const tz0=TZ; TZ=CTX.dep.apt.tz||TZ; const dep=denverToDate(fDate.value,fTime.value); TZ=tz0;
-  return {dep, ret:new Date(+dep+(+fDur.value)*3600e3)};
+  const tz0=TZ; TZ=CTX.dep.apt.tz||TZ; const dep=denverToDate(fDate.value,fTime.value);
+  TZ=CTX.arr.apt.tz||TZ; let ret=fArr.value?denverToDate(fDate.value,fArr.value):new Date(+dep+2*3600e3); TZ=tz0;
+  let next=false; if(+ret<=+dep){ret=new Date(+ret+86400e3); next=true;}
+  const dEl=document.getElementById("fArrDay"); if(dEl) dEl.textContent=next?"next day":"";
+  return {dep, ret};
 }
 const hourFloor=t=>Math.floor(+t/3600e3)*3600e3;
 function inWindow(t,w){return w && +t>=hourFloor(w.dep) && +t<=+w.ret;}
@@ -924,7 +947,6 @@ function chipsFor(wind,alts,t){
 function renderFlight(){
   const out=document.getElementById("flightOut"), w=flightWindow();
   if(!w){out.innerHTML="";return;}
-  document.getElementById("fRange").textContent=`${timeText(w.dep)} → ${hm(w.ret)} local`;
   let h="";
   // worst case across the whole window, per runway, from both sources
   const hours=[]; for(let t=hourFloor(w.dep);t<=+w.ret;t+=3600e3) hours.push(t);
@@ -1188,7 +1210,7 @@ function scoreText(sc,title){
   L.push("Advisory only. The decision is yours.");
   return L.join("\n").replace(/&/g,"&amp;").replace(/</g,"&lt;");
 }
-// Flight score: the worst hour between departure and return, from both forecast sources
+// Score each hour in a window (worst of both forecast sources); the flight score uses one-hour windows
 function flightScore(w){
   const out=[];
   for(let t=hourFloor(w.dep);t<=+w.ret;t+=3600e3){
@@ -1206,19 +1228,17 @@ function renderFlightScore(){
   document.getElementById("llwsNote").textContent=tick?`Ticked at ${hm(new Date(tick))}; counts for hours up to ${hm(new Date(tick+LLWS_TICK_H*3600e3))} and then clears itself.`:"Ticking this turns the score red for the next 12 hours.";
   state.shareScore=null;
   if(!w){el.innerHTML="";return;}
-  // Local flight: every hour of the window at the one airport. Two airports: the takeoff airport at the
-  // departure hour and the landing airport at the return hour (the route between is not scored).
-  const hrs=sameApt()?withSide("dep",()=>flightScore(w).map(x=>({...x,apt:CTX.dep.apt.code})))
-    :[...withSide("dep",()=>flightScore({dep:w.dep,ret:w.dep}).map(x=>({...x,apt:CTX.dep.apt.code,hmT:hm(x.sc.t)}))),
-      ...withSide("arr",()=>flightScore({dep:w.ret,ret:w.ret}).map(x=>({...x,apt:CTX.arr.apt.code,hmT:hm(x.sc.t)})))];
-  hrs.forEach(x=>{if(!x.hmT) x.hmT=hm(x.sc.t);});
+  // Two hours only (Azat): the takeoff airport at the takeoff hour and the landing airport at the landing
+  // hour. Hours in between and the route are not scored. A local flight is the same rule at one airport.
+  const hrs=[...withSide("dep",()=>flightScore({dep:w.dep,ret:w.dep}).map(x=>({...x,leg:"Takeoff",apt:CTX.dep.apt.code,hmT:hm(x.sc.t)}))),
+      ...withSide("arr",()=>flightScore({dep:w.ret,ret:w.ret}).map(x=>({...x,leg:"Landing",apt:CTX.arr.apt.code,hmT:hm(x.sc.t)})))];
   if(!hrs.length){el.innerHTML=`<span class="small">Flight score: no forecast covers this window yet.</span>`;return;}
   const worst=hrs.reduce((x,y)=>y.sc.score<x.sc.score?y:x), q=hrs.some(h=>h.sc.q);
   const route=sameApt()?CTX.dep.apt.code:`${CTX.dep.apt.code} → ${CTX.arr.apt.code}`;
   state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w, route};
-  let h=`<div class="row"><b>Flight score ${route}</b><span class="chip sc ${worst.sc.color}" id="fsChip">${worst.sc.score}${q?"?":""}</span><span class="small">${sameApt()?"worst hour of your window":"lower of takeoff and landing"} (${worst.apt} ${worst.hmT}, ${worst.src}). Tap the number for the reasons.</span></div>`;
-  h+=`<div class="chips">`+hrs.map(x=>`<span class="chip ${x.sc.color}">${sameApt()?"":x.apt+" "}${x.hmT}: ${x.sc.score}${x.sc.q?"?":""}</span>`).join("")+`</div>`;
-  if(state.flightOpen) h+=`<div class="scorebox" style="margin-top:8px">${withSide(worst.apt===CTX.dep.apt.code?"dep":"arr",()=>scoreText(worst.sc,`${worst.apt} ${worst.hmT} (${worst.src})`))}</div>`;
+  let h=`<div class="row"><b>Flight score ${route}</b><span class="chip sc ${worst.sc.color}" id="fsChip">${worst.sc.score}${q?"?":""}</span><span class="small">lower of takeoff and landing (${worst.apt} ${worst.hmT}, ${worst.src}). Tap the number for the reasons.</span></div>`;
+  h+=`<div class="chips">`+hrs.map(x=>`<span class="legsc"><span class="small">${x.leg} ${x.hmT}</span><span class="chip ${x.sc.color}">${x.sc.score}${x.sc.q?"?":""}</span></span>`).join("")+`</div>`;
+  if(state.flightOpen) h+=`<div class="scorebox" style="margin-top:8px">${withSide(worst.leg==="Takeoff"?"dep":"arr",()=>scoreText(worst.sc,`${worst.apt} ${worst.hmT} (${worst.src})`))}</div>`;
   el.innerHTML=h;
   document.getElementById("fsChip").addEventListener("click",()=>{state.flightOpen=!state.flightOpen;renderFlightScore();});
 }
@@ -1227,9 +1247,9 @@ function renderFlightScore(){
 document.getElementById("share").addEventListener("click",async()=>{
   const url=location.origin+location.pathname, sc=state.shareScore;
   const day=sc?sc.w.dep.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"}):"";
-  const text=sc?`${sc.route} flight score ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}: ${sc.score} (${sc.color}). See the reasons and your own score here:`
-               :APT.code+" runway wind and a 0–100 flight score with its reasons:";
-  try{ if(navigator.share){await navigator.share({title:APT.code+" Runway Wind",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
+  const text=sc?`FlightScore ${sc.route} ${day} ${hmRange(sc.w.dep,sc.w.ret)}, score ${sc.score} of 100 (${sc.color}). See the reasons and your own score here:`
+               :"FlightScore: a 0–100 score for your flight from runway wind and weather, with the reasons:";
+  try{ if(navigator.share){await navigator.share({title:"FlightScore",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
   try{await navigator.clipboard.writeText(text+" "+url); alert("Link copied. Paste it in a message to a friend.");}
   catch(e){prompt("Copy this and send it to a friend:",text+" "+url);}
 });
@@ -1252,8 +1272,7 @@ function windHTML(w){
 }
 function timeText(d){
   if(!d) return "";
-  const loc=d.toLocaleString("en-US",{timeZone:TZ,weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false});
-  return `${loc} local · ${String(d.getUTCDate()).padStart(2,"0")}${String(d.getUTCHours()).padStart(2,"0")}${String(d.getUTCMinutes()).padStart(2,"0")}Z`;
+  return d.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"})+" "+hm(d)+" local";
 }
 function cardsHTML(wind,t,alts,label){
   const res=evaluate(wind,limits(),t);
@@ -1374,13 +1393,16 @@ function renderTimeline(){
     err.textContent="";
   }
   const lim=limits();
-  let h=`<tr><th>Time (local / Z)</th><th>Score</th><th>Cat.</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
+  let h=`<tr><th>Time (local)</th><th>Score</th><th>Cat.</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
+  const fw=flightWindow(), wIdx=rows.map((r,i)=>inWindow(r.time,fw)?i:-1).filter(i=>i>=0);
+  const depH=fw&&APT.code===CTX.dep.apt.code?hourFloor(fw.dep):null, arrH=fw&&APT.code===CTX.arr.apt.code?hourFloor(fw.ret):null;
   rows.forEach((row,i)=>{
     const sc=scoreHour(row.time,row.wind,row.alts), scKey=row.label+(+row.time);
     const res=evaluate(row.wind,lim,row.time), fc=flightCat(row.time);
     const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
-    const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(inWindow(row.time,flightWindow())?" win":"");
-    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td class="wind">${windHTML(row.wind)}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windHTML(a.wind)}</span>`).join(""):""}</td>`+
+    const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(wIdx.includes(i)?" win":"")+(i===wIdx[0]?" winTop":"")+(i===wIdx[wIdx.length-1]?" winBot":"");
+    const tag=[+row.time===depH?"Takeoff":"",+row.time===arrH?"Landing":""].filter(Boolean).join(" · ");
+    h+=`<tr data-i="${i}" class="${sel}"><td>${tag?`<span class="legtag">${tag}</span><br>`:""}${timeText(row.time).replace(" local","")}</td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td class="wind">${windHTML(row.wind)}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windHTML(a.wind)}</span>`).join(""):""}</td>`+
       res.map((x,k)=>{
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
@@ -1407,8 +1429,8 @@ async function refresh(){
     for(const sd of sides){ enterSide(sd); const parts=await refreshOne(); state.status=parts; saveSide(sd);
       all.push(...(sides.length>1?parts.map(p=>p.startsWith("Updated")?null:p.includes(APT.code)?p:`<b>${APT.code}</b> ${p}`).filter(Boolean):parts)); }
   } finally { sideBusy=false; enterSide(viewSide); }
-  if(sides.length>1) all.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false})+" local");
-  const upd="Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false});
+  if(sides.length>1) all.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true})+" local");
+  const upd="Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true});
   document.getElementById("updTop").textContent=upd;
   // anything that failed or is stale is repeated at the top, beside the scores it affects
   const bad=all.filter(x=>x.includes('class="err"')), tw=document.getElementById("topWarn");
@@ -1437,7 +1459,7 @@ async function refreshOne(){
   } else parts.push(`<span class="err">G-AIRMET and pilot reports not loaded (${wxr.reason.message}); check the map yourself</span>`);
   if([m,t,n].some(x=>x.status!=="fulfilled")) parts.push("You can paste a METAR/TAF further down instead.");
   if(extraFail.length) parts.push(`<span class="err">Not loaded: ${extraFail.join(", ")}</span>`);
-  parts.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hour12:false})+" local");
+  parts.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true})+" local");
   return parts;
 }
 document.getElementById("refresh").addEventListener("click",refresh);

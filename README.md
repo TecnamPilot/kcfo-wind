@@ -1,4 +1,4 @@
-# KCFO Runway Wind
+# FlightScore
 
 Advisory crosswind/headwind tool for a Tecnam P2008 TC (Rotax 914) at KCFO.
 Open: https://tecnampilot.github.io/kcfo-wind/
