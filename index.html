@@ -1263,8 +1263,8 @@ function renderFlightScore(){
   const worst=hrs.reduce((x,y)=>y.sc.score<x.sc.score?y:x), q=hrs.some(h=>h.sc.q);
   const route=sameApt()?CTX.dep.apt.code:`${CTX.dep.apt.code} → ${CTX.arr.apt.code}`;
   state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w, route};
-  // No separate score card (Azat, 2026-11-13): each score sits in its Takeoff / Landing header below
-  // (renderLegs). The lower one is still the flight score for the Share text.
+  // No separate score card (Azat, 2026-11-13): the best runway box at each airport already shows that hour's
+  // score (tap the box for reasons). The lower one is still the flight score for the Share text.
   state.legScores=hrs; el.innerHTML="";
 }
 // Share: the phone's own share sheet (Messages, WhatsApp, ...) with the app link and the current flight score.
@@ -1353,21 +1353,17 @@ function renderLegs(){
   const el=document.getElementById("legs"), w=flightWindow();
   if(!w){el.innerHTML="";return;}
   const short=x=>windText(x).split(" · ")[0];
-  const ls=state.legScores||[];
   el.innerHTML=[["Takeoff",w.dep,"dep"],["Landing",w.ret,"arr"]].map(([title0,t,sd])=>withSide(sd,()=>{
-    const x=ls.find(v=>v.leg===title0), badge=x?` <span class="chip sc ${x.sc.color}" data-leg="${title0}" title="Tap for the reasons">${x.sc.score}${x.sc.q?"?":""}</span>`:"";
-    const why=x&&state.flightOpen===title0?`<div class="scorebox" style="margin:6px 0">${scoreText(x.sc,`${x.apt} ${x.hmT} (${x.src})`)}</div>`:"";
     const title=`${title0} <span class="aptcode">${APT.code}</span>`;
     const p=legPick(t), when=timeText(t).split(" local")[0];
     if(!p) return `<div class="leghead"><b>${title} ${when}</b></div><p class="small">No forecast covers this time yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
     const k=p.pick;
-    let h=`<div class="leghead"><b>${title} ${when}</b>${badge} <span class="small">· ${k.label}: ${short(k.wind)}${k.alts.length?" · "+k.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}</span></div>${why}`;
+    let h=`<div class="leghead"><b>${title} ${when}</b> <span class="small">· ${k.label}: ${short(k.wind)}${k.alts.length?" · "+k.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}</span></div>`;
     h+=`<div class="rwys">${cardsHTML(k.wind,t,k.alts,k.label+" wind").html}</div>`;
     if(p.other){const o=p.other; h+=`<div class="small" style="margin-top:6px">Other forecast, ${o.label}: ${short(o.wind)}${o.alts.length?" · "+o.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}. Best-runway score ${o.sc.score}${o.sc.q?"?":""}.</div>${chipsFor(o.wind,o.alts,t)}`;}
     else h+=`<div class="small" style="margin-top:6px">${k.label==="NWS hourly"?"The "+TAFN()+" does not cover this time yet (each TAF covers about 30 h).":"NWS hourly is not loaded for this time."}</div>`;
     return h;
   })).join("");
-  el.querySelectorAll("[data-leg]").forEach(c=>c.addEventListener("click",()=>{state.flightOpen=state.flightOpen===c.dataset.leg?null:c.dataset.leg; renderLegs();}));
 }
 function drawDiagram(w,res){
   const svg=document.getElementById("diagram");
