@@ -68,6 +68,8 @@ h1{white-space:nowrap}
 .aptrow{grid-auto-flow:column;grid-template-rows:auto auto auto auto auto;row-gap:4px;align-items:center;justify-items:start}
 .aptrow .legin{display:contents}
 #fArrDay{grid-row:4;align-self:center}
+.legsc{display:inline-flex;align-items:center;gap:6px;margin-right:16px}
+.legsc .small{font-size:14px;color:var(--ink)}
 .aptrow .lh{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .aptrow input[type=date],.aptrow input[type=time]{max-width:100%}
 input.apt{font-family:inherit;font-weight:700;font-size:22px;line-height:1.2;width:4.4em;padding:0 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);text-transform:uppercase}
@@ -1228,7 +1230,7 @@ function renderFlightScore(){
   const route=sameApt()?CTX.dep.apt.code:`${CTX.dep.apt.code} → ${CTX.arr.apt.code}`;
   state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w, route};
   let h=`<div class="row"><b>Flight score ${route}</b><span class="chip sc ${worst.sc.color}" id="fsChip">${worst.sc.score}${q?"?":""}</span><span class="small">lower of takeoff and landing (${worst.apt} ${worst.hmT}, ${worst.src}). Tap the number for the reasons.</span></div>`;
-  h+=`<div class="chips">`+hrs.map(x=>`<span class="chip ${x.sc.color}">${x.leg} ${x.hmT}: ${x.sc.score}${x.sc.q?"?":""}</span>`).join("")+`</div>`;
+  h+=`<div class="chips">`+hrs.map(x=>`<span class="legsc"><span class="small">${x.leg} ${x.hmT}</span><span class="chip ${x.sc.color}">${x.sc.score}${x.sc.q?"?":""}</span></span>`).join("")+`</div>`;
   if(state.flightOpen) h+=`<div class="scorebox" style="margin-top:8px">${withSide(worst.leg==="Takeoff"?"dep":"arr",()=>scoreText(worst.sc,`${worst.apt} ${worst.hmT} (${worst.src})`))}</div>`;
   el.innerHTML=h;
   document.getElementById("fsChip").addEventListener("click",()=>{state.flightOpen=!state.flightOpen;renderFlightScore();});
@@ -1238,7 +1240,7 @@ function renderFlightScore(){
 document.getElementById("share").addEventListener("click",async()=>{
   const url=location.origin+location.pathname, sc=state.shareScore;
   const day=sc?sc.w.dep.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"}):"";
-  const text=sc?`FlightScore ${sc.route} ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}: ${sc.score} (${sc.color}). See the reasons and your own score here:`
+  const text=sc?`FlightScore ${sc.route} ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}, score ${sc.score} of 100 (${sc.color}). See the reasons and your own score here:`
                :"FlightScore: a 0–100 score for your flight from runway wind and weather, with the reasons:";
   try{ if(navigator.share){await navigator.share({title:"FlightScore",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
   try{await navigator.clipboard.writeText(text+" "+url); alert("Link copied. Paste it in a message to a friend.");}
