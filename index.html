@@ -111,7 +111,10 @@ details p,details li{font-size:14px}
 .legend span{display:inline-block;padding:2px 8px;border-radius:5px;margin-right:6px;font-size:12px;font-weight:600}
 svg text{fill:var(--ink)}
 select,input[type=date],input[type=time]{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
-.tl tr.win td:first-child{box-shadow:inset 4px 0 0 var(--accent)}
+/* Frame around the hours from takeoff to landing, so a bad hour in the middle stands out */
+.tl tr.win td{box-shadow:inset calc(var(--wl,0)*3px) 0 0 var(--accent),inset calc(var(--wr,0)*-3px) 0 0 var(--accent),inset 0 calc(var(--wt,0)*3px) 0 var(--accent),inset 0 calc(var(--wb,0)*-3px) 0 var(--accent)}
+.tl tr.win td:first-child{--wl:1}.tl tr.win td:last-child{--wr:1}.tl tr.winTop td{--wt:1}.tl tr.winBot td{--wb:1}
+.legtag{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em}
 .legs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
 .leg{border:1px solid var(--line);border-radius:8px;padding:10px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -1383,12 +1386,15 @@ function renderTimeline(){
   }
   const lim=limits();
   let h=`<tr><th>Time (local / Z)</th><th>Score</th><th>Cat.</th><th>Wind (true)</th>${RWYS.map(r=>`<th>RWY ${r.id}</th>`).join("")}</tr>`;
+  const fw=flightWindow(), wIdx=rows.map((r,i)=>inWindow(r.time,fw)?i:-1).filter(i=>i>=0);
+  const depH=fw&&APT.code===CTX.dep.apt.code?hourFloor(fw.dep):null, arrH=fw&&APT.code===CTX.arr.apt.code?hourFloor(fw.ret):null;
   rows.forEach((row,i)=>{
     const sc=scoreHour(row.time,row.wind,row.alts), scKey=row.label+(+row.time);
     const res=evaluate(row.wind,lim,row.time), fc=flightCat(row.time);
     const altRes=row.alts.map(a=>({a,res:evaluate(a.wind,lim,row.time)}));
-    const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(inWindow(row.time,flightWindow())?" win":"");
-    h+=`<tr data-i="${i}" class="${sel}"><td>${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td class="wind">${windHTML(row.wind)}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windHTML(a.wind)}</span>`).join(""):""}</td>`+
+    const sel=(state.view&&+state.view.time===+row.time&&state.view.label===row.label?" sel":"")+(wIdx.includes(i)?" win":"")+(i===wIdx[0]?" winTop":"")+(i===wIdx[wIdx.length-1]?" winBot":"");
+    const tag=[+row.time===depH?"Takeoff":"",+row.time===arrH?"Landing":""].filter(Boolean).join(" · ");
+    h+=`<tr data-i="${i}" class="${sel}"><td>${tag?`<span class="legtag">${tag}</span><br>`:""}${timeText(row.time).replace(" local ·","<br><span class=small>")}</span></td><td class="c sc ${sc.color}" data-sc="${scKey}" title="Tap for the reasons">${sc.score}${sc.q?"?":""}</td><td class="c cat ${fc.cls}" title="${fc.why}">${fc.cat}</td><td class="wind">${windHTML(row.wind)}${row.alts.length?row.alts.map(a=>`<span class="small" style="display:block">${a.kind} ${windHTML(a.wind)}</span>`).join(""):""}</td>`+
       res.map((x,k)=>{
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
