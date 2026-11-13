@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KCFO Runway Wind</title>
+<title>FlightScore</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="KCFO Wind">
+<meta name="apple-mobile-web-app-title" content="FlightScore">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -134,7 +134,7 @@ a{color:var(--accent)}
 <body>
 <main>
 <div class="row" style="justify-content:space-between">
-  <h1>Runway Wind</h1>
+  <h1>FlightScore</h1>
   <div class="row"><span id="updTop" class="small"></span><button id="share">Share</button><button class="primary" id="refresh">Refresh</button></div>
 </div>
 <div class="aptrow">
@@ -790,7 +790,7 @@ function renderApt(){
   const D=CTX.dep.apt, A=CTX.arr.apt;
   document.getElementById("aptDep").value=D.code; document.getElementById("aptArr").value=A.code;
   document.getElementById("aptDepName").textContent=D.name; document.getElementById("aptArrName").textContent=sameApt()?"same airport (local flight)":A.name;
-  document.title=(sameApt()?D.code:D.code+"→"+A.code)+" Runway Wind";
+  document.title="FlightScore "+(sameApt()?D.code:D.code+"→"+A.code);
   document.getElementById("tblTitle").innerHTML=`Hour by hour at <span class="aptcode">${a.code}</span>`;
   const vs=document.getElementById("viewSel");
   vs.style.display=sameApt()?"none":"";
@@ -1238,9 +1238,9 @@ function renderFlightScore(){
 document.getElementById("share").addEventListener("click",async()=>{
   const url=location.origin+location.pathname, sc=state.shareScore;
   const day=sc?sc.w.dep.toLocaleDateString("en-US",{timeZone:TZ,weekday:"short"}):"";
-  const text=sc?`${sc.route} flight score ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}: ${sc.score} (${sc.color}). See the reasons and your own score here:`
-               :APT.code+" runway wind and a 0–100 flight score with its reasons:";
-  try{ if(navigator.share){await navigator.share({title:APT.code+" Runway Wind",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
+  const text=sc?`FlightScore ${sc.route} ${day} ${hm(sc.w.dep)}–${hm(sc.w.ret)}: ${sc.score} (${sc.color}). See the reasons and your own score here:`
+               :"FlightScore: a 0–100 score for your flight from runway wind and weather, with the reasons:";
+  try{ if(navigator.share){await navigator.share({title:"FlightScore",text,url}); return;} }catch(e){ if(e&&e.name==="AbortError") return; }
   try{await navigator.clipboard.writeText(text+" "+url); alert("Link copied. Paste it in a message to a friend.");}
   catch(e){prompt("Copy this and send it to a friend:",text+" "+url);}
 });
