@@ -979,15 +979,9 @@ function renderFlight(){
   const hours=[]; for(let t=hourFloor(w.dep);t<=+w.ret;t+=3600e3) hours.push(t);
   const winds=[];
   hours.forEach(t=>{const n=nwsAt(t); if(n)winds.push({src:"NWS",t,wind:n.wind}); const a=tafWindAt(t); if(a){winds.push({src:"TAF",t,wind:a.prevail}); a.alts.forEach(x=>winds.push({src:"TAF "+x.kind,t,wind:x.wind}));}});
-  if(winds.length){
-    const lim=limits();
-    const worst=RWYS.map((r,k)=>{let xw=0,tw=0,red=false,why=[];winds.forEach(x=>{const e=evaluate(x.wind,lim)[k];
-      if(e.xwMax>xw)xw=e.xwMax; if(e.twMax>tw)tw=e.twMax; if(e.red){red=true;why.push(`${hm(new Date(x.t))} ${x.src}`);}});return {r,xw,tw,red,why};});
-    h+=`<p class="small" style="margin:0 0 4px"><b>Worst case anywhere in your window</b> (${winds.length} forecast hours/groups checked, gusts and TEMPO included):</p><div class="chips">`+
-      worst.map(x=>`<span class="chip ${x.red?"red":"grey"}" title="${x.why.join(', ')}">RWY ${x.r.id}: X ${Math.round(x.xw)} · T ${Math.round(x.tw)}</span>`).join("")+`</div>`;
-    const allRed=worst.every(x=>x.red);
-    if(allRed) h+=`<p class="err"><b>Every runway goes over a limit at some point in your window.</b> Look at the hour-by-hour rows above to see whether it is only part of the window.</p>`;
-  } else h+=`<p class="small">No forecast covers this window yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
+  // The per-runway "worst case in your window" chips were removed (Azat, 2026-11-13): they repeated the
+  // runway boxes above. The hourly table frames the window for a bad middle hour.
+  if(winds.length){  } else h+=`<p class="small">No forecast covers this window yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
   out.innerHTML=h;
 }
 function lvl(kind,txt){return `<b class="lvl-${kind}">${txt}</b>`;}
@@ -1021,7 +1015,7 @@ function renderAware(){
     const sky=Math.max(...wx.map(r=>r.sky??0)), pop=Math.max(...wx.map(r=>r.pop??0));
     const t0=n0&&n0.temp!=null?`${Math.round(n0.temp)} °C / dew point ${Math.round(n0.dew)} °C at departure`:"";
     items.push(`${lvl(frost?"warn":"ok","Frost")}: ${t0}. ${frost?"Cold, humid morning: frost on the wing is likely after a clear night. Even thin frost cuts lift; remove all of it before takeoff.":"Frost unlikely from the forecast."}`);
-    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`NWS gridded forecast: lowest ceiling about ${(Math.round(Math.min(...ceil)/100)*100).toLocaleString()} ft above ground. `:"No usable ceiling value in the NWS gridded forecast for this window; for cloud bases use the ${TAFN()} (shown in the forecast section). "}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
+    items.push(`${lvl(fog||lowVis?"warn":"ok","Fog / visibility")}: ${fog?"temperature and dew point within 2 °C, so fog or low cloud can form, especially near sunrise. ":"temperature/dew-point spread is wide. "}${lowVis?"Forecast visibility drops under 5 SM. ":""}${ceil.length?`NWS gridded forecast: lowest ceiling about ${(Math.round(Math.min(...ceil)/100)*100).toLocaleString()} ft above ground. `:"No usable ceiling value in the NWS gridded forecast for this window; for cloud bases use the "+TAFN()+" (shown in the forecast section). "}Sky cover up to ${Math.round(sky)}%, chance of precipitation up to ${Math.round(pop)}%.`);
   }
   // Gust spread
   const gusty=(state.nws||[]).filter(r=>inWindow(r.time,w)&&r.wind.gst);
