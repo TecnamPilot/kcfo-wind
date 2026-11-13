@@ -77,6 +77,7 @@ b.mv{color:var(--accent)}
 .mins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 14px}
 .mins label{display:flex;flex-direction:column;gap:2px;font-weight:600;font-size:14px}
 .mins label>span{font-weight:400}
+#updTop{cursor:pointer}
 #minsLine{margin:2px 0 8px;font-size:15px;font-weight:600}
 #minsLine a{font-weight:500;margin-left:6px}
 #minsLine .dflt{font-weight:500}
@@ -140,7 +141,7 @@ a{color:var(--accent)}
 <main>
 <div class="row" style="justify-content:space-between">
   <h1>FlightScore</h1>
-  <div class="row"><span id="updTop" class="small"></span><button id="share">Share</button><button class="primary" id="refresh">Refresh</button></div>
+  <div class="row"><span id="updTop" class="small" role="button" title="Tap to update the weather now"></span><button id="share">Share app with your friends</button></div>
 </div>
 <div id="minsLine"></div>
 <div class="aptrow">
@@ -160,7 +161,6 @@ a{color:var(--accent)}
 
 <div class="card" id="flightCard">
   <div id="flightScore"></div>
-  <div class="small" style="margin-top:8px"><span class="legend"><span style="background:var(--green-bg);color:var(--green)">✓ Best</span><span style="background:var(--grey-bg);color:var(--grey)">Usable</span><span style="background:var(--red-bg);color:var(--red)">✕ Over limit</span></span>The number beside each runway is its score. Tap a box for details.</div>
   <div id="legs"></div>
   <label class="small" id="llwsBox" style="display:none;margin-top:10px"><input type="checkbox" id="llwsTick"> I looked at the <a href="https://aviationweather.gov/gfa/#gairmet" target="_blank" rel="noopener">G-AIRMET map</a> and it shows low-level wind shear (LLWS) over KCFO. <span id="llwsNote"></span> <span class="small">(Shown because the app could not read a fresh G-AIRMET itself.)</span></label>
 </div>
@@ -1254,11 +1254,13 @@ function renderFlightScore(){
   const worst=hrs.reduce((x,y)=>y.sc.score<x.sc.score?y:x), q=hrs.some(h=>h.sc.q);
   const route=sameApt()?CTX.dep.apt.code:`${CTX.dep.apt.code} → ${CTX.arr.apt.code}`;
   state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w, route};
-  let h=`<div class="row"><b>Flight score ${route}</b><span class="chip sc ${worst.sc.color}" id="fsChip">${worst.sc.score}${q?"?":""}</span><span class="small">lower of takeoff and landing (${worst.apt} ${worst.hmT}, ${worst.src}). Tap the number for the reasons.</span></div>`;
-  h+=`<div class="chips">`+hrs.map(x=>`<span class="legsc"><span class="small">${x.leg} ${x.hmT}</span><span class="chip ${x.sc.color}">${x.sc.score}${x.sc.q?"?":""}</span></span>`).join("")+`</div>`;
-  if(state.flightOpen) h+=`<div class="scorebox" style="margin-top:8px">${withSide(worst.leg==="Takeoff"?"dep":"arr",()=>scoreText(worst.sc,`${worst.apt} ${worst.hmT} (${worst.src})`))}</div>`;
+  // Only the two scores (Azat, 2026-11-13): the pilot reads takeoff and landing and decides. The lower one is
+  // still the flight score for the Share text. Tap a badge for its reasons.
+  let h=`<div class="chips">`+hrs.map((x,i)=>`<span class="legsc"><span class="small">${x.leg} ${x.hmT}</span><span class="chip sc ${x.sc.color}" data-leg="${i}" title="Tap for the reasons">${x.sc.score}${x.sc.q?"?":""}</span></span>`).join("")+`</div>`;
+  const op=hrs[state.flightOpen];
+  if(op) h+=`<div class="scorebox" style="margin-top:8px">${withSide(op.leg==="Takeoff"?"dep":"arr",()=>scoreText(op.sc,`${op.apt} ${op.hmT} (${op.src})`))}</div>`;
   el.innerHTML=h;
-  document.getElementById("fsChip").addEventListener("click",()=>{state.flightOpen=!state.flightOpen;renderFlightScore();});
+  el.querySelectorAll("[data-leg]").forEach(c=>c.addEventListener("click",()=>{const i=+c.dataset.leg; state.flightOpen=state.flightOpen===i?null:i; renderFlightScore();}));
 }
 // Share: the phone's own share sheet (Messages, WhatsApp, ...) with the app link and the current flight score.
 // Only the plain app address is sent: no personal minimums, airplane or level.
@@ -1439,7 +1441,15 @@ function renderAll(){if(sideBusy) return; renderView();renderTimeline();renderFl
 // ---------- controls ----------
 const statusEl=document.getElementById("status");
 function setStatus(parts){statusEl.innerHTML=parts.join(" · ");}
+// Weather reloads by itself: when the page opens, every 10 minutes, and when the app comes back to the
+// screen after 5+ minutes away (no Refresh button; Azat, 2026-11-13). Tapping "Updated …" reloads now.
+let refreshing=false, lastRefresh=0;
 async function refresh(){
+  if(refreshing) return; refreshing=true; lastRefresh=Date.now();
+  document.getElementById("updTop").textContent="Updating weather…";
+  try{ await refreshAll(); } finally { refreshing=false; }
+}
+async function refreshAll(){
   setStatus(["Loading…"]);
   const sides=sameApt()?["dep"]:["dep","arr"], all=[];
   saveSide(curSide); sideBusy=true;
@@ -1448,7 +1458,7 @@ async function refresh(){
       all.push(...(sides.length>1?parts.map(p=>p.startsWith("Updated")?null:p.includes(APT.code)?p:`<b>${APT.code}</b> ${p}`).filter(Boolean):parts)); }
   } finally { sideBusy=false; enterSide(viewSide); }
   if(sides.length>1) all.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true})+" local");
-  const upd="Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true});
+  const upd="Weather updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true})+" ↻";
   document.getElementById("updTop").textContent=upd;
   // anything that failed or is stale is repeated at the top, beside the scores it affects
   const bad=all.filter(x=>x.includes('class="err"')), tw=document.getElementById("topWarn");
@@ -1480,7 +1490,8 @@ async function refreshOne(){
   parts.push("Updated "+new Date().toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit",hour12:true})+" local");
   return parts;
 }
-document.getElementById("refresh").addEventListener("click",refresh);
+document.getElementById("updTop").addEventListener("click",refresh);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-lastRefresh>5*60e3) refresh();});
 document.getElementById("backNow").addEventListener("click",()=>{state.view=null;renderAll();});
 const srcTaf=document.getElementById("srcTaf"), srcNws=document.getElementById("srcNws");
 srcTaf.addEventListener("click",()=>{state.src="TAF";srcTaf.classList.add("on");srcNws.classList.remove("on");renderTimeline();});
