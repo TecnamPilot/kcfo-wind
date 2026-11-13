@@ -200,8 +200,7 @@ a{color:var(--accent)}
   <div class="lvl">
     <div class="row"><b>I hold</b>
       <select id="cert"><option value="">choose…</option><option value="student">Student pilot certificate</option><option value="sport">Sport pilot</option><option value="private">Private pilot</option><option value="commercial">Commercial pilot</option><option value="atp">Airline transport pilot</option></select>
-      <label><input type="checkbox" id="ratIfr"> Instrument rating</label>
-      <label><input type="checkbox" id="ratMe"> Multiengine rating</label></div>
+</div>
   </div>
   <h3 id="minsSetTitle" style="margin:12px 0 6px;font-size:15px"></h3>
   <div id="suggest" class="small" style="margin-bottom:8px"></div>
@@ -350,7 +349,7 @@ const AIRCRAFT={
     vfeTxt:"85 KIAS, the flap limit (VFE) for flaps beyond 10° (110 KIAS with flaps 10°)",
     distTxt:"<b>+10% for every 2 kt of tailwind</b> (charts go to 10 kt tailwind), <b>−10% for every 9 kt of headwind</b> (C172S POH §5 chart notes)",
     dist:(tw,hd)=>tw>0.5?{pct:Math.round(Math.round(tw)/2*10)}:{pct:-Math.round(Math.round(hd)/9*10)}},
-  p2008:{name:"Tecnam P2008 TC (Rotax 914)", short:"P2008", xw:15, vapp:65, vfe:71, src:"Tecnam P2008 TC Flight Manual (Rotax 914 UL), Ed.1 Rev.3, §2.1.24, §4.5, §4.6, §4.7",
+  p2008:{name:"Tecnam P2008 TC (Rotax 914)", short:"P2008", maxSpread:12, xw:15, vapp:65, vfe:71, src:"Tecnam P2008 TC Flight Manual (Rotax 914 UL), Ed.1 Rev.3, §2.1.24, §4.5, §4.6, §4.7",
     vfeTxt:"71 KIAS, the flap limit (VFE) in your current POH; the same limit applies with any flaps out, including flaps 15°",
     distTxt:"<b>+15 m (50 ft) per kt of tailwind</b>, <b>−5 m (16 ft) per kt of headwind</b> (P2008 TC Flight Manual §4.6 takeoff and §4.7 landing)",
     dist:(tw,hd)=>tw>0.5?{m:Math.round(tw)*15}:{m:-Math.round(hd)*5}},
@@ -370,19 +369,30 @@ const AC=()=>AIRCRAFT[acSel.value];
 function renderAc(){const a=AC(), t=(id,v,h)=>{const e=document.getElementById(id); if(e) e[h?"innerHTML":"textContent"]=v;};
   t("acXwHint",`${a.name} POH demonstrated: ${a.xw}`); t("acDistTxt",a.distTxt,1); t("acBanXw",a.xw+" kt"); t("acBanSrc",a.src); t("acSub",a.name); t("acSrc",a.src);}
 acSel.addEventListener("change",()=>{lsSet("kcfo.ac",acSel.value); renderAc(); renderMins(); renderAll();});
-// Suggested starting points by certificate, in MINS order: xw, tw, wind, gust, spread, ceil, vis.
+// Level presets, in MINS order: xw, tw, wind, gust, spread, ceil, vis (Azat approved 2026-11-13).
 // Not FAA numbers (the FAA asks each pilot to set their own); a starting point the pilot edits.
+// Sources and reasoning: /mnt/project-files/kcfo-crosswind/minimums-research-all-levels.md
 const SUGGEST={
-  student:   {name:"student pilot", short:"Student", v:[7,3,15,15,5,3000,5]},
-  sport:     {name:"sport pilot", short:"Sport", v:[10,3,15,20,8,3000,5]},
-  private:   {name:"private pilot", short:"Private", v:[12,5,20,25,10,3000,5]},
-  commercial:{name:"commercial pilot", short:"Commercial", v:[15,6,25,25,15,3000,5]},
-  atp:       {name:"airline transport pilot", short:"ATP", v:[15,6,25,25,15,3000,5]},
+  student:   {name:"student pilot", short:"Student", v:[7,3,15,15,5,3000,5],
+    help:"Your instructor's solo limits in your logbook come first. These are the middle of 8 flight schools' published solo limits: crosswind 7 kt, wind 15, gust 15, spread 5. Ceiling 3,000 ft and 5 miles visibility are the FAA's example for a new pilot."},
+  sport:     {name:"sport pilot", short:"Sport", v:[8,4,16,18,6,3000,5],
+    help:"Sport pilots train at least 20 hours, half a private pilot's 40, and light-sport airplanes are light, so gusts move them more. One small step above a student: crosswind 8 kt, tailwind 4, wind 16, gust 18, spread 6. The law allows 3 miles visibility, but that is a floor, so the app starts at 5 miles and 3,000 ft."},
+  private:   {name:"private pilot", short:"Private", v:[10,5,18,22,8,3000,5],
+    help:"The middle values flying clubs publish for private pilots who rent: crosswind 10 kt, about two thirds of a C172's 15 kt demonstrated, tailwind 5, wind 18, gust 22, spread 8. Ceiling 3,000 ft and 5 miles are the FAA's example for a 100-hour pilot."},
+  commercial:{name:"commercial pilot", short:"Commercial", v:[15,6,22,27,10,2500,4],
+    help:"At least 250 hours. Clubs let commercial pilots use the airplane's full demonstrated crosswind, never more. Wind 22, gust 27, spread 10. The lower ceiling 2,500 ft and 4 miles move toward the FAA's example for a 300-hour instrument pilot (2,000 ft, 3 miles)."},
+  atp:       {name:"airline transport pilot", short:"ATP", v:[15,6,25,30,12,2000,3],
+    help:"At least 1,500 hours, but in a small airplane the airplane sets the crosswind: its demonstrated value. Wind 25, gust 30 (the most any club allows), spread 12. Ceiling 2,000 ft and 3 miles follow the FAA's example for a 300-hour instrument pilot."},
 };
+// The filled numbers never exceed the airplane: crosswind is the lower of the level value and the airplane's
+// demonstrated crosswind; on the P2008 the gust spread is capped at 12 kt (above that the gust-corrected
+// approach speed passes the flap limit). The score uses only the numbers, never the level.
+function presetFor(cert,acKey){const sg=SUGGEST[cert]; if(!sg) return null; const a=AIRCRAFT[acKey]||AC(), v=sg.v.slice();
+  v[0]=Math.min(v[0],a.xw); if(a.maxSpread) v[4]=Math.min(v[4],a.maxSpread); return v;}
 // Two sets of minimums: solo (the original keys) and with an instructor aboard ("kcfo.cfi.*").
 // One set of minimums per pilot: the pilot in command's own (Azat, 2026-11-12: no separate instructor set).
-const certEl=document.getElementById("cert"), ifrEl=document.getElementById("ratIfr"), meEl=document.getElementById("ratMe");
-certEl.value=lsGet("kcfo.cert",""); ifrEl.checked=lsGet("kcfo.ifr","0")==="1"; meEl.checked=lsGet("kcfo.me","0")==="1";
+const certEl=document.getElementById("cert");
+certEl.value=lsGet("kcfo.cert","");
 function loadSet(){MINS.forEach(m=>m.el.value=lsGet(m.key,String(m.def)));}
 MINS.forEach(m=>m.el=document.getElementById(m.id)); loadSet();
 function limits(){const o={}; MINS.forEach(m=>{const v=parseFloat(m.el.value); o[m.k]=isFinite(v)?Math.max(m.lo,v):m.def;}); return o;}
@@ -392,31 +402,30 @@ document.getElementById("minsReset").addEventListener("click",()=>{MINS.forEach(
 // Choosing a certificate fills in that level's suggested numbers right away (the pilot asked for that level),
 // with Undo to get the previous numbers back.
 let undoMins=null;
-certEl.addEventListener("change",()=>{const sg=SUGGEST[certEl.value]; if(!sg) return;
-  const before=MINS.map(m=>m.el.value); if(MINS.every((m,i)=>+m.el.value===sg.v[i])) return;
-  undoMins=before; MINS.forEach((m,i)=>m.el.value=sg.v[i]); MINS.forEach(m=>lsSet(m.key,m.el.value));});
-function levelChanged(){lsSet("kcfo.cert",certEl.value); lsSet("kcfo.ifr",ifrEl.checked?"1":"0"); lsSet("kcfo.me",meEl.checked?"1":"0");
-  renderMins(); renderAll();}
-[certEl,ifrEl,meEl].forEach(e=>e.addEventListener("change",levelChanged));
+certEl.addEventListener("change",()=>{const v=presetFor(certEl.value); if(!v) return;
+  const before=MINS.map(m=>m.el.value); if(MINS.every((m,i)=>+m.el.value===v[i])) return;
+  undoMins=before; MINS.forEach((m,i)=>m.el.value=v[i]); MINS.forEach(m=>lsSet(m.key,m.el.value));});
+function levelChanged(){lsSet("kcfo.cert",certEl.value); renderMins(); renderAll();}
+certEl.addEventListener("change",levelChanged);
+// Changing the airplane while on a level's numbers refills them for the new airplane (its crosswind cap).
+let prevAc=acSel.value;
+acSel.addEventListener("change",()=>{const was=presetFor(certEl.value,prevAc), now=presetFor(certEl.value,acSel.value); prevAc=acSel.value;
+  if(was&&now&&MINS.every((m,i)=>+m.el.value===was[i])){MINS.forEach((m,i)=>m.el.value=now[i]); minsChanged();}});
 document.addEventListener("click",e=>{
   if(e.target&&e.target.id==="undoMins"&&undoMins){MINS.forEach((m,i)=>m.el.value=undoMins[i]); undoMins=null; minsChanged(); return;}
-  if(e.target&&e.target.id==="useSuggest"){const sg=SUGGEST[certEl.value]; if(sg){MINS.forEach((m,i)=>m.el.value=sg.v[i]); minsChanged();}}});
+  if(e.target&&e.target.id==="useSuggest"){const v=presetFor(certEl.value); if(v){MINS.forEach((m,i)=>m.el.value=v[i]); minsChanged();}}});
 function renderMins(){
   const L=limits(), n=v=>v.toLocaleString(), dflt=MINS.every(m=>L[m.k]===m.def);
   document.getElementById("minsSetTitle").textContent="Your numbers";
   const sg=SUGGEST[certEl.value], u=["kt","kt","kt","kt","kt","ft","SM"], lbl=["crosswind","tailwind","wind","gust","spread","ceiling","visibility"];
+  const pv=presetFor(certEl.value), preset=!!pv&&MINS.every((m,i)=>L[m.k]===pv[i]);
   let sgt="";
-  if(sg){const same=MINS.every((m,i)=>L[m.k]===sg.v[i]);
-    const list=sg.v.map((v,i)=>`${lbl[i]} ${n(v)} ${u[i]}`).join(", ");
-    sgt=same?`<b>Using the ${sg.name} starting numbers</b>: ${list}.${undoMins?` <button id="undoMins">Undo</button> (back to your previous numbers)`:""}`
-            :`<b>These are your own numbers, not the ${sg.name} suggestion</b> (${list}). <button id="useSuggest">Use the suggestion</button>`;
-    if(certEl.value==="student") sgt+=` <b>As a student, use the limits your instructor wrote in your solo endorsement</b> (FAR 61.87(n)); they replace these.`;
-    if(certEl.value&&ifrEl.checked) sgt+=` An instrument rating does not lower these, because the score is for VFR flights.`;}
+  if(sg){sgt=sg.help;
+    if(preset&&undoMins) sgt+=` <button id="undoMins">Undo</button>`;
+    if(!preset) sgt+=` <b>You changed some numbers, so they are your own.</b> <button id="useSuggest">Use the ${sg.short} numbers</button>`;}
   document.getElementById("suggest").innerHTML=sgt;
-  // One short line at the top: airplane · level. If any number differs from the level's preset it says
-  // "Own mins", so it never claims a preset that is not in use.
-  const preset=sg&&MINS.every((m,i)=>L[m.k]===sg.v[i]);
-  document.getElementById("minsLine").innerHTML=`${AC().short} · ${preset?sg.short:"Own mins"}<a href="#minsCard" id="minsGo" title="Airplane, level and minimums">✎ Edit</a>`;
+  // One glance line at the top: level (or "Own" after any edit) · crosswind · wind and gust · airplane.
+  document.getElementById("minsLine").innerHTML=`${preset?sg.short:"Own"} · XW${L.xw} · W${L.wind} G${L.gust} · ${AC().short}<a href="#minsCard" id="minsGo" title="Airplane, level and minimums">✎ Edit</a>`;
   const warn=[];
   if(L.xw>AC().xw) warn.push(`Your max crosswind is above the ${AC().xw} kt the ${AC().name} POH demonstrated.`);
   MINS.forEach(m=>{const v=parseFloat(m.el.value); if(isFinite(v)&&v<m.lo) warn.push(`${m.el.closest("label").firstChild.textContent.trim()} below ${n(m.lo)} is not allowed; ${n(m.lo)} is used.`);});
