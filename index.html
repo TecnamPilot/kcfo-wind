@@ -1259,17 +1259,13 @@ function renderFlightScore(){
   // hour. Hours in between and the route are not scored. A local flight is the same rule at one airport.
   const hrs=[...withSide("dep",()=>flightScore({dep:w.dep,ret:w.dep}).map(x=>({...x,leg:"Takeoff",apt:CTX.dep.apt.code,hmT:hm(x.sc.t)}))),
       ...withSide("arr",()=>flightScore({dep:w.ret,ret:w.ret}).map(x=>({...x,leg:"Landing",apt:CTX.arr.apt.code,hmT:hm(x.sc.t)})))];
-  if(!hrs.length){el.innerHTML=`<span class="small">Flight score: no forecast covers this window yet.</span>`;return;}
+  if(!hrs.length){state.legScores=[]; el.innerHTML="";return;}
   const worst=hrs.reduce((x,y)=>y.sc.score<x.sc.score?y:x), q=hrs.some(h=>h.sc.q);
   const route=sameApt()?CTX.dep.apt.code:`${CTX.dep.apt.code} → ${CTX.arr.apt.code}`;
   state.shareScore={score:worst.sc.score+(q?"?":""), color:worst.sc.color, w, route};
-  // Only the two scores (Azat, 2026-11-13): the pilot reads takeoff and landing and decides. The lower one is
-  // still the flight score for the Share text. Tap a badge for its reasons.
-  let h=`<div class="chips">`+hrs.map((x,i)=>`<span class="legsc"><span class="small">${x.leg} ${x.hmT}</span><span class="chip sc ${x.sc.color}" data-leg="${i}" title="Tap for the reasons">${x.sc.score}${x.sc.q?"?":""}</span></span>`).join("")+`</div>`;
-  const op=hrs[state.flightOpen];
-  if(op) h+=`<div class="scorebox" style="margin-top:8px">${withSide(op.leg==="Takeoff"?"dep":"arr",()=>scoreText(op.sc,`${op.apt} ${op.hmT} (${op.src})`))}</div>`;
-  el.innerHTML=h;
-  el.querySelectorAll("[data-leg]").forEach(c=>c.addEventListener("click",()=>{const i=+c.dataset.leg; state.flightOpen=state.flightOpen===i?null:i; renderFlightScore();}));
+  // No separate score card (Azat, 2026-11-13): each score sits in its Takeoff / Landing header below
+  // (renderLegs). The lower one is still the flight score for the Share text.
+  state.legScores=hrs; el.innerHTML="";
 }
 // Share: the phone's own share sheet (Messages, WhatsApp, ...) with the app link and the current flight score.
 // Only the plain app address is sent: no personal minimums, airplane or level.
@@ -1357,17 +1353,21 @@ function renderLegs(){
   const el=document.getElementById("legs"), w=flightWindow();
   if(!w){el.innerHTML="";return;}
   const short=x=>windText(x).split(" · ")[0];
+  const ls=state.legScores||[];
   el.innerHTML=[["Takeoff",w.dep,"dep"],["Landing",w.ret,"arr"]].map(([title0,t,sd])=>withSide(sd,()=>{
+    const x=ls.find(v=>v.leg===title0), badge=x?` <span class="chip sc ${x.sc.color}" data-leg="${title0}" title="Tap for the reasons">${x.sc.score}${x.sc.q?"?":""}</span>`:"";
+    const why=x&&state.flightOpen===title0?`<div class="scorebox" style="margin:6px 0">${scoreText(x.sc,`${x.apt} ${x.hmT} (${x.src})`)}</div>`:"";
     const title=`${title0} <span class="aptcode">${APT.code}</span>`;
     const p=legPick(t), when=timeText(t).split(" local")[0];
     if(!p) return `<div class="leghead"><b>${title} ${when}</b></div><p class="small">No forecast covers this time yet. NWS hourly goes about 7 days out; the ${TAFN()} about 30 hours.</p>`;
     const k=p.pick;
-    let h=`<div class="leghead"><b>${title} ${when}</b> <span class="small">· ${k.label}: ${short(k.wind)}${k.alts.length?" · "+k.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}</span></div>`;
+    let h=`<div class="leghead"><b>${title} ${when}</b>${badge} <span class="small">· ${k.label}: ${short(k.wind)}${k.alts.length?" · "+k.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}</span></div>${why}`;
     h+=`<div class="rwys">${cardsHTML(k.wind,t,k.alts,k.label+" wind").html}</div>`;
     if(p.other){const o=p.other; h+=`<div class="small" style="margin-top:6px">Other forecast, ${o.label}: ${short(o.wind)}${o.alts.length?" · "+o.alts.map(a=>a.kind+" "+short(a.wind)).join("; "):""}. Best-runway score ${o.sc.score}${o.sc.q?"?":""}.</div>${chipsFor(o.wind,o.alts,t)}`;}
     else h+=`<div class="small" style="margin-top:6px">${k.label==="NWS hourly"?"The "+TAFN()+" does not cover this time yet (each TAF covers about 30 h).":"NWS hourly is not loaded for this time."}</div>`;
     return h;
   })).join("");
+  el.querySelectorAll("[data-leg]").forEach(c=>c.addEventListener("click",()=>{state.flightOpen=state.flightOpen===c.dataset.leg?null:c.dataset.leg; renderLegs();}));
 }
 function drawDiagram(w,res){
   const svg=document.getElementById("diagram");
