@@ -52,6 +52,7 @@ textarea{width:100%;min-height:80px;font:13px ui-monospace,Menlo,Consolas,monosp
 .rwy{border-radius:10px;padding:8px 10px;border:2px solid var(--grey);background:var(--grey-bg)}
 .rwy.green{border-color:var(--green);background:var(--green-bg)}
 .rwy.red{border-color:var(--red);background:var(--red-bg)}
+.rwy.amber{border-color:var(--amber);background:var(--amber-bg)}
 .rwy[open]{grid-column:1/-1}
 .rwy summary{list-style:none;font-weight:400}
 .rwy summary::-webkit-details-marker{display:none}
@@ -65,6 +66,7 @@ textarea{width:100%;min-height:80px;font:13px ui-monospace,Menlo,Consolas,monosp
 h1{white-space:nowrap}
 .rwy.green .tag{background:var(--green);color:#06210f}
 .rwy.red .tag{background:var(--red);color:#fff}
+.rwy.amber .tag{background:var(--amber);color:#2a1d00}
 .rwy table{width:100%;border-collapse:collapse;margin-top:6px;font-size:14px}
 .rwy td{padding:2px 0}
 .rwy td:last-child{text-align:right;font-weight:600}
@@ -1355,7 +1357,8 @@ function cardsHTML(wind,t,alts,label){
     const dd=x.distDelta;
     const sg=v=>(v>0?"+":"−")+Math.abs(v), dist=!dd?"see your POH charts":dd.pct!=null?(dd.pct===0?"no change":sg(dd.pct)+"%"):(dd.m===0?"no change":sg(dd.m)+" m ("+sg(Math.round(dd.m*3.281))+" ft)");
     const line=x.calm?"Calm":`${x.headMin>=0?"Head "+Math.round(x.headMin):"Tail "+Math.round(x.twMax)} · Cross ${Math.round(x.xwMax)} kt${x.side&&x.xwMax>=0.5?(x.side==="R"?" R":" L"):""}`;
-    return `<details class="rwy ${x.cls}"><summary><div class="name${x.r.id.length>4?" long":""}">RWY ${x.r.id}<span class="chip sc ${sc.color}">${sc.score}${sc.q?"?":""}</span></div>
+    // box color = this runway's score color, so a fog hour never shows a green box with a red score
+    return `<details class="rwy ${sc.color}"><summary><div class="name${x.r.id.length>4?" long":""}">RWY ${x.r.id}<span class="chip sc ${sc.color}">${sc.score}${sc.q?"?":""}</span></div>
       <div class="line">${x.cls==="green"?"✓ ":x.cls==="red"?"✕ ":""}${line}</div></summary>
       <div style="margin-top:6px"><span class="tag">${tag}</span></div>
       <div class="small" style="margin-top:6px">${String(x.r.tru).padStart(3,"0")}° true · ${x.r.mag}° magnetic</div>
