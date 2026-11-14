@@ -1,0 +1,119 @@
+{
+ "fetched": "2026-11-14T10:51:46.216Z",
+ "gairmet": {
+  "ok": true,
+  "total": 194,
+  "areas": 194,
+  "validTimes": [
+   "2026-11-14T09:00:00.000Z",
+   "2026-11-14T12:00:00.000Z",
+   "2026-11-14T15:00:00.000Z",
+   "2026-11-14T18:00:00.000Z",
+   "2026-11-14T21:00:00.000Z"
+  ],
+  "items": [
+   {
+    "hazard": "IFR",
+    "product": "SIERRA",
+    "validTime": "2026-11-14T09:00:00.000Z",
+    "forecastHour": 0,
+    "base": null,
+    "top": null,
+    "level": null,
+    "severity": null,
+    "due_to": "CIG BLW 010 VIS BLW 3SM BR FG",
+    "tag": "1E"
+   },
+   {
+    "hazard": "MT_OBSC",
+    "product": "SIERRA",
+    "validTime": "2026-11-14T09:00:00.000Z",
+    "forecastHour": 0,
+    "base": null,
+    "top": null,
+    "level": null,
+    "severity": null,
+    "due_to": "MTNS OBSC BY CLDS PCPN BR",
+    "tag": "4E"
+   },
+   {
+    "hazard": "MT_OBSC",
+    "product": "SIERRA",
+    "validTime": "2026-11-14T12:00:00.000Z",
+    "forecastHour": 3,
+    "base": null,
+    "top": null,
+    "level": null,
+    "severity": null,
+    "due_to": "MTNS OBSC BY CLDS PCPN BR",
+    "tag": "4E"
+   },
+   {
+    "hazard": "IFR",
+    "product": "SIERRA",
+    "validTime": "2026-11-14T12:00:00.000Z",
+    "forecastHour": 3,
+    "base": null,
+    "top": null,
+    "level": null,
+    "severity": null,
+    "due_to": "CIG BLW 010 VIS BLW 3SM BR FG",
+    "tag": "1E"
+   },
+   {
+    "hazard": "IFR",
+    "product": "SIERRA",
+    "validTime": "2026-11-14T15:00:00.000Z",
+    "forecastHour": 6,
+    "base": null,
+    "top": null,
+    "level": null,
+    "severity": null,
+    "due_to": "CIG BLW 010 VIS BLW 3SM BR FG",
+    "tag": "1E"
+   },
+   {
+    "hazard": "MT_OBSC",
+    "product": "SIERRA",
+    "validTime": "2026-11-14T15:00:00.000Z",
+    "forecastHour": 6,
+    "base": null,
+    "top": null,
+    "level": null,
+    "severity": null,
+    "due_to": "MTNS OBSC BY CLDS PCPN BR",
+    "tag": "4E"
+   }
+  ]
+ },
+ "pirep": {
+  "ok": true,
+  "total": 2,
+  "items": [
+   {
+    "obsTime": 1794647040,
+    "distNm": 6,
+    "fltLvl": 80,
+    "fltLvlType": "OTHER",
+    "acType": "B763",
+    "tbInt1": "NEG",
+    "tbInt2": "",
+    "tbBas1": null,
+    "tbTop1": null,
+    "rawOb": "000 UBCO90 KWBC 140910 CO 140910 DEN UA /OV DEN/TM 0904/FL80/TP B763/TB NEG/RM SMOOTH"
+   },
+   {
+    "obsTime": 1794644640,
+    "distNm": 6,
+    "fltLvl": 0,
+    "fltLvlType": "DURD",
+    "acType": "B738",
+    "tbInt1": "NEG",
+    "tbInt2": "",
+    "tbBas1": null,
+    "tbTop1": null,
+    "rawOb": "DEN UA /OV DEN/TM 0824/FLDURD/TP B738/TB NEG/RM SMOOTH"
+   }
+  ]
+ }
+}
