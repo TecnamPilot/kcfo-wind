@@ -654,8 +654,17 @@ function tafAt(taf,t){
 }
 
 // ---------- NWS fetch ----------
+// Every download gives up after a time limit. Without it one weather site that never answers
+// (NWS did this on 2026-11-13) froze the whole page on "Updating weather…" with no warning.
+function fetchT(url,opts={},ms=20000){
+  const ac=new AbortController(), t=setTimeout(()=>ac.abort(),ms);
+  return fetch(url,{...opts,signal:ac.signal}).then(r=>{
+    // keep the clock running while the body downloads, then stop it
+    const json=r.json.bind(r); r.json=()=>json().finally(()=>clearTimeout(t)); return r;
+  },e=>{clearTimeout(t); throw ac.signal.aborted?new Error(`no answer in ${ms/1000} s`):e;});
+}
 async function getJSON(url){
-  const r=await fetch(url,{headers:{Accept:"application/geo+json"}});
+  const r=await fetchT(url,{headers:{Accept:"application/geo+json"}});
   if(!r.ok) throw new Error(`${r.status} from ${new URL(url).pathname}`);
   return r.json();
 }
@@ -746,7 +755,7 @@ async function fetchModel(){
   const vars=["wind_speed_10m","wind_direction_10m"];
   LEVELS.forEach(l=>vars.push(`wind_speed_${l}hPa`,`wind_direction_${l}hPa`,`geopotential_height_${l}hPa`));
   const url=`https://api.open-meteo.com/v1/forecast?latitude=${APT.lat}&longitude=${APT.lon}&hourly=${vars.join(",")}&wind_speed_unit=kn&timeformat=unixtime&forecast_days=7`;
-  const r=await fetch(url); if(!r.ok) throw new Error(`${r.status} from Open-Meteo`);
+  const r=await fetchT(url); if(!r.ok) throw new Error(`${r.status} from Open-Meteo`);
   const H=(await r.json()).hourly; if(!H||!H.time) throw new Error("Open-Meteo sent no hourly data");
   const lvl=(k,i)=>{const s=H[`wind_speed_${k}`], d=H[`wind_direction_${k}`], z=H[`geopotential_height_${k}`];
     return s&&d&&s[i]!=null&&d[i]!=null?{spd:s[i],dir:d[i],h:z&&z[i]!=null?z[i]:null}:null;};
@@ -762,7 +771,7 @@ async function fetchModel(){
 // a problem here cannot break the winds aloft.
 async function fetchThermal(){
   const url=`https://api.open-meteo.com/v1/forecast?latitude=${APT.lat}&longitude=${APT.lon}&hourly=sensible_heat_flux,boundary_layer_height,shortwave_radiation,temperature_2m&models=gfs_seamless&timeformat=unixtime&forecast_days=7`;
-  const r=await fetch(url); if(!r.ok) throw new Error(`${r.status} from Open-Meteo`);
+  const r=await fetchT(url); if(!r.ok) throw new Error(`${r.status} from Open-Meteo`);
   const H=(await r.json()).hourly; if(!H||!H.time) throw new Error("Open-Meteo sent no hourly data");
   const hf=H.sensible_heat_flux||[], bl=H.boundary_layer_height||[], sw=H.shortwave_radiation||[], tt=H.temperature_2m||[];
   if(!bl.some(v=>v!=null)) throw new Error("no boundary layer height in the answer");
@@ -796,13 +805,13 @@ const WX_MAX_AGE_H=2;
 const WXUS_URL="https://raw.githubusercontent.com/tecnampilot/kcfo-wind/data/wx-us.json";
 async function fetchWx(){
   if(APT.code!=="KCFO"){
-    const r=await fetch(WXUS_URL,{cache:"no-store"}); if(!r.ok) throw new Error(`${r.status} from the saved US G-AIRMET file`);
+    const r=await fetchT(WXUS_URL,{cache:"no-store"}); if(!r.ok) throw new Error(`${r.status} from the saved US G-AIRMET file`);
     const j=await r.json(); j.time=Date.parse(j.fetched); if(!j.time) throw new Error("saved G-AIRMET file has no time stamp");
     if(j.gairmet&&j.gairmet.items) j.gairmet.items=j.gairmet.items.filter(x=>x.ring&&pointInRing(APT.lon,APT.lat,x.ring));
     if(j.pirep&&j.pirep.items) j.pirep.items=j.pirep.items.map(p=>({...p,distNm:Math.round(distNm(APT,p))})).filter(p=>p.distNm<=40);
     return j;
   }
-  const r=await fetch(WX_URL,{cache:"no-store"}); if(!r.ok) throw new Error(`${r.status} from the saved G-AIRMET file`);
+  const r=await fetchT(WX_URL,{cache:"no-store"}); if(!r.ok) throw new Error(`${r.status} from the saved G-AIRMET file`);
   const j=await r.json(); j.time=Date.parse(j.fetched); if(!j.time) throw new Error("saved G-AIRMET file has no time stamp");
   return j;
 }
@@ -817,7 +826,7 @@ async function lookupAirport(input){
   const code=input.trim().toUpperCase();
   if(!code) throw new Error("type an airport code, for example KAPA");
   if(code==="KCFO"||code==="CFO"||code==="KFTG"||code==="FTG") return KCFO_APT;
-  if(!AIRPORTS){const r=await fetch("airports.json"); if(!r.ok) throw new Error(`airport list not loaded (${r.status})`); AIRPORTS=await r.json();}
+  if(!AIRPORTS){const r=await fetchT("airports.json",{},60000); if(!r.ok) throw new Error(`airport list not loaded (${r.status})`); AIRPORTS=await r.json();}
   const k=AIRPORTS[code]?code:AIRPORTS._alias[code]||(AIRPORTS["K"+code]?"K"+code:null);
   if(!k||!AIRPORTS[k]) throw new Error(`${code} not found. Only US airports with a runway are listed.`);
   const [name,lat,lon,elev,mv,rw]=AIRPORTS[k], a={code:k,name,lat,lon,elev:elev??0,mv,rw};
@@ -1477,7 +1486,8 @@ function setStatus(parts){statusEl.innerHTML=parts.join(" · ");}
 // screen after 5+ minutes away (no Refresh button; Azat, 2026-11-13). Tapping "Updated …" reloads now.
 let refreshing=false, lastRefresh=0;
 async function refresh(){
-  if(refreshing) return; refreshing=true; lastRefresh=Date.now();
+  // a reload stuck for over 2 minutes no longer blocks the next one
+  if(refreshing && Date.now()-lastRefresh<120e3) return; refreshing=true; lastRefresh=Date.now();
   document.getElementById("updTop").textContent="Updating weather…";
   try{ await refreshAll(); } finally { refreshing=false; }
 }
