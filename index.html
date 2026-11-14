@@ -1471,7 +1471,8 @@ function renderTimeline(){
         const hw=x.calm?"calm":(x.headMin>=0?"H"+Math.round(x.headMin):"T"+Math.round(x.twMax));
         const xwTxt="X"+Math.round(x.xwMax);
         const altRed=altRes.filter(ar=>ar.res[k].red&&!x.red).map(ar=>`${ar.a.kind}: X${Math.round(ar.res[k].xwMax)} T${Math.round(ar.res[k].twMax)}`);
-        return `<td class="c ${x.cls}">${x.calm?"calm":hw+" "+xwTxt}${altRed.length?`<span class="tempo">⚠ ${altRed.join(", ")}</span>`:""}</td>`;
+        // cell color = this runway's score color, same rule as the runway boxes
+        return `<td class="c ${scoreHour(row.time,row.wind,row.alts,x.r.id).color}">${x.calm?"calm":hw+" "+xwTxt}${altRed.length?`<span class="tempo">⚠ ${altRed.join(", ")}</span>`:""}</td>`;
       }).join("")+`</tr>`;
     if(state.scoreOpen===scKey) h+=`<tr><td class="whyrow" colspan="8"><div class="scorebox">${scoreText(sc,timeText(row.time).split(" local")[0]+` (${row.label} wind)`)}<div class="small" style="margin-top:6px">${fc.why}</div></div></td></tr>`;
   });
